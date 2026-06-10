@@ -1,32 +1,39 @@
 package com.flowfree;
 
-import com.badlogic.gdx.ApplicationAdapter;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.Game;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.flowfree.datos.GestorUsuarios;
+import com.flowfree.hilos.HiloAutoguardado;
+import com.flowfree.pantallas.PantallaLogin;
 
-/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
-public class FlowFreeGame extends ApplicationAdapter {
-    private SpriteBatch batch;
-    private Texture image;
+public class FlowFreeGame extends Game {
+
+    public SpriteBatch batch;
+    public ShapeRenderer shapeRenderer;
+
+    public GestorUsuarios gestorUsuarios;
+
+    private HiloAutoguardado hiloAutoguardado;
 
     @Override
     public void create() {
         batch = new SpriteBatch();
-        image = new Texture("libgdx.png");
-    }
+        shapeRenderer = new ShapeRenderer();
+        gestorUsuarios = new GestorUsuarios();
 
-    @Override
-    public void render() {
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
-        batch.begin();
-        batch.draw(image, 140, 210);
-        batch.end();
+        hiloAutoguardado = new HiloAutoguardado(gestorUsuarios);
+        hiloAutoguardado.start();
+
+        setScreen(new PantallaLogin(this));
     }
 
     @Override
     public void dispose() {
         batch.dispose();
-        image.dispose();
+        shapeRenderer.dispose();
+        if (hiloAutoguardado != null) {
+            hiloAutoguardado.detener();
+        }
     }
 }
