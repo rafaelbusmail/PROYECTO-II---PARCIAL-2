@@ -1,26 +1,23 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.flowfree.datos;
 
 import com.flowfree.interfaces.IGestionable;
-import com.flowfree.interfaces.IEstadisticas;
 import com.flowfree.modelo.Estadisticas;
 import com.flowfree.modelo.HistorialPartida;
+import com.flowfree.modelo.Preferencias;
 import com.flowfree.modelo.Usuario;
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+
+import java.io.File;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class GestorUsuarios implements IGestionable, IEstadisticas {
 
-    private GestorArchivos gestorArchivos;
+public class GestorUsuarios implements IGestionable {
+
+    private static final String BASE_DIR = "assets/datos/usuarios/";
     private Usuario usuarioActual;
+    private final GestorArchivos gestorArchivos;
 
     public GestorUsuarios() {
         this.gestorArchivos = new GestorArchivos();
@@ -28,40 +25,35 @@ public class GestorUsuarios implements IGestionable, IEstadisticas {
     }
 
     @Override
-    public boolean crearUsuario(String username, String password,
-            String nombreCompleto) {
+    public boolean crearUsuario(String username, String password, String nombreCompleto) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        String carpeta = BASE_DIR + username.toUpperCase() + "/";
+        String rutaPerfil = carpeta + "perfil.bin";
+
+        if (gestorArchivos.existeArchivo(rutaPerfil)) {
+            return false;
+        }
+
+        new File(carpeta).mkdirs();
+
+        Usuario nuevoUsuario = new Usuario(
+                username.toUpperCase(),
+                password,
+                nombreCompleto,
+                LocalDate.now()
+        );
         try {
-            if (buscarUsuario(username) != null) {
-                return false;
-            }
-
-            if (username == null || username.trim().isEmpty()) {
-                return false;
-            }
-            if (password == null || password.length() < 6) {
-                return false;
-            }
-            if (nombreCompleto == null || nombreCompleto.trim().isEmpty()) {
-                return false;
-            }
-
-            String hash = hashPassword(password);
-
-            Usuario nuevo = new Usuario(
-                    username.trim(), hash, nombreCompleto.trim()
-            );
-
-            gestorArchivos.crearCarpetaUsuario(username);
-            gestorArchivos.guardar(nuevo,
-                    GestorArchivos.getRutaPerfil(username));
-            gestorArchivos.guardar(nuevo.getEstadisticas(),
-                    GestorArchivos.getRutaEstadisticas(username));
-            gestorArchivos.guardar(nuevo.getPreferencias(),
-                    GestorArchivos.getRutaPreferencias(username));
-
+            guardarPerfil(nuevoUsuario, carpeta);
+            gestorArchivos.guardar(new Estadisticas(username.toUpperCase()),
+                    carpeta + "estadisticas.bin");
+            gestorArchivos.guardar(new Preferencias(),
+                    carpeta + "preferencias.bin");
+            usuarioActual = nuevoUsuario;
             return true;
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Error al crear usuario: " + e.getMessage());
             return false;
         }
@@ -69,13 +61,16 @@ public class GestorUsuarios implements IGestionable, IEstadisticas {
 
     @Override
     public Usuario buscarUsuario(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        String ruta = BASE_DIR + username.toUpperCase() + "/perfil.bin";
+        if (!gestorArchivos.existeArchivo(ruta)) {
+            return null;
+        }
         try {
-            String ruta = GestorArchivos.getRutaPerfil(username);
-            if (!gestorArchivos.existeArchivo(ruta)) {
-                return null;
-            }
             return (Usuario) gestorArchivos.cargar(ruta);
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (Exception e) {
             System.err.println("Error al buscar usuario: " + e.getMessage());
             return null;
         }
@@ -83,47 +78,63 @@ public class GestorUsuarios implements IGestionable, IEstadisticas {
 
     @Override
     public boolean validarLogin(String username, String password) {
-        try {
-            Usuario usuario = buscarUsuario(username);
-            if (usuario == null) {
-                return false;
-            }
-
-            String hash = hashPassword(password);
-            if (!usuario.getPasswordHash().equals(hash)) {
-                return false;
-            }
-
-            usuario.actualizarSesion();
-            gestorArchivos.guardar(usuario,
-                    GestorArchivos.getRutaPerfil(username));
-
-            this.usuarioActual = usuario;
-            return true;
-
-        } catch (IOException e) {
-            System.err.println("Error en login: " + e.getMessage());
+        if (username == null || username.isBlank()
+                || password == null || password.isBlank()) {
             return false;
         }
+
+        String carpeta = BASE_DIR + username.toUpperCase() + "/";
+        String rutaPerfil = carpeta + "perfil.bin";
+        if (!gestorArchivos.existeArchivo(rutaPerfil)) {
+            return false;
+        }
+
+        try {
+            Usuario usuario = (Usuario) gestorArchivos.cargar(rutaPerfil);
+            if (usuario != null && usuario.getPassword().equals(password)) {
+                usuarioActual = usuario;
+                usuarioActual.setUltimaConexion(LocalDate.now());
+                guardarPerfil(usuarioActual, carpeta);
+                return true;
+            }
+        } catch (Exception e) {
+            System.err.println("Error al cargar perfil: " + e.getMessage());
+        }
+        return false;
     }
 
     @Override
     public boolean eliminarUsuario(String username, String password) {
-        if (!validarLogin(username, password)) {
+        Usuario u = buscarUsuario(username);
+        if (u == null || !u.getPassword().equals(password)) {
             return false;
         }
-        this.usuarioActual = null;
-        return gestorArchivos.eliminarCarpetaUsuario(username);
+        String carpeta = BASE_DIR + username.toUpperCase() + "/";
+        File dir = new File(carpeta);
+        if (dir.exists()) {
+            for (File f : dir.listFiles()) {
+                f.delete();
+            }
+            dir.delete();
+        }
+        if (usuarioActual != null
+                && usuarioActual.getUsername().equals(username.toUpperCase())) {
+            usuarioActual = null;
+        }
+        return true;
     }
 
     @Override
     public boolean actualizarUsuario(Usuario usuario) {
+        if (usuario == null) {
+            return false;
+        }
+        String carpeta = BASE_DIR + usuario.getUsername() + "/";
         try {
-            gestorArchivos.guardar(usuario,
-                    GestorArchivos.getRutaPerfil(usuario.getUsername()));
+            guardarPerfil(usuario, carpeta);
             return true;
-        } catch (IOException e) {
-            System.err.println("Error al actualizar: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error al actualizar usuario: " + e.getMessage());
             return false;
         }
     }
@@ -131,182 +142,126 @@ public class GestorUsuarios implements IGestionable, IEstadisticas {
     @Override
     public List<Usuario> obtenerRanking() {
         List<Usuario> lista = new ArrayList<>();
-        String[] usernames = gestorArchivos.obtenerUsuariosRegistrados();
+        File baseDir = new File(BASE_DIR);
+        if (!baseDir.exists() || !baseDir.isDirectory()) {
+            return lista;
+        }
 
-        for (String username : usernames) {
-            Usuario u = buscarUsuario(username);
-            if (u != null) {
-                lista.add(u);
+        File[] carpetas = baseDir.listFiles(File::isDirectory);
+        if (carpetas == null) {
+            return lista;
+        }
+
+        for (File carpeta : carpetas) {
+            File perfil = new File(carpeta, "perfil.bin");
+            if (perfil.exists()) {
+                try {
+                    Usuario u = (Usuario) gestorArchivos.cargar(perfil.getPath());
+                    if (u != null) {
+                        lista.add(u);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Error cargando ranking: " + e.getMessage());
+                }
             }
         }
 
-        Collections.sort(lista, new Comparator<Usuario>() {
-            @Override
-            public int compare(Usuario a, Usuario b) {
-                return b.getEstadisticas().getPuntajeTotal()
-                        - a.getEstadisticas().getPuntajeTotal();
-            }
-        });
-
+        lista.sort(Comparator.comparingInt(
+                (Usuario u) -> u.getEstadisticas().getPuntajeTotal()).reversed());
         return lista;
     }
 
-    @Override
-    public void registrarPartida(String username,
-            HistorialPartida partida) {
-        try {
-            Usuario usuario = buscarUsuario(username);
-            if (usuario == null) {
-                return;
-            }
+    public void registrarPartida(String username, HistorialPartida partida) {
+        Usuario u = (usuarioActual != null
+                && usuarioActual.getUsername().equals(username))
+                ? usuarioActual
+                : buscarUsuario(username);
+        if (u == null) {
+            return;
+        }
 
-            usuario.agregarPartida(partida);
+        u.registrarPartida(partida);
+        actualizarUsuario(u);
 
-            if (partida.isCompletado()) {
-                usuario.getEstadisticas().registrarNivelCompletado(
-                        partida.getPuntajeObtenido(),
-                        partida.getTiempoEmpleado(),
-                        partida.getMovimientos()
-                );
-                usuario.desbloquearNivel(partida.getNivelJugado() + 1);
-            } else {
-                usuario.getEstadisticas().registrarFallo();
-            }
-
-            gestorArchivos.guardar(usuario,
-                    GestorArchivos.getRutaPerfil(username));
-            gestorArchivos.guardar(usuario.getEstadisticas(),
-                    GestorArchivos.getRutaEstadisticas(username));
-
-            if (usuarioActual != null
-                    && usuarioActual.getUsername().equals(username)) {
-                this.usuarioActual = usuario;
-            }
-
-        } catch (IOException e) {
-            System.err.println("Error al registrar partida: "
-                    + e.getMessage());
+        if (usuarioActual != null
+                && usuarioActual.getUsername().equals(username)) {
+            usuarioActual = u;
         }
     }
 
-    @Override
-    public void actualizarEstadisticas(String username,
-            Estadisticas stats) {
-        try {
-            gestorArchivos.guardar(stats,
-                    GestorArchivos.getRutaEstadisticas(username));
-        } catch (IOException e) {
-            System.err.println("Error al actualizar stats: "
-                    + e.getMessage());
-        }
-    }
-
-    @Override
-    public Estadisticas obtenerEstadisticas(String username) {
-        try {
-            String ruta = GestorArchivos.getRutaEstadisticas(username);
-            if (!gestorArchivos.existeArchivo(ruta)) {
-                return null;
-            }
-            return (Estadisticas) gestorArchivos.cargar(ruta);
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error al obtener stats: " + e.getMessage());
-            return null;
-        }
-    }
-
-    @Override
-    public List<Estadisticas> obtenerRankingGlobal() {
-        List<Estadisticas> lista = new ArrayList<>();
-        String[] usernames = gestorArchivos.obtenerUsuariosRegistrados();
-
-        for (String username : usernames) {
-            Estadisticas e = obtenerEstadisticas(username);
-            if (e != null) {
-                lista.add(e);
-            }
-        }
-
-        Collections.sort(lista, new Comparator<Estadisticas>() {
-            @Override
-            public int compare(Estadisticas a, Estadisticas b) {
-                return b.getPuntajeTotal() - a.getPuntajeTotal();
-            }
-        });
-
-        return lista;
-    }
-
-
-    public static String hashPassword(String password) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(password.getBytes("UTF-8"));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException | java.io.UnsupportedEncodingException e) {
-            return String.valueOf(password.hashCode());
-        }
-    }
-
-  
     public static boolean validarPassword(String password) {
-        if (password == null || password.length() < 6) {
+        if (password == null || password.length() < 5) {
             return false;
         }
-        boolean tieneMayuscula = false;
-        boolean tieneNumero = false;
-        for (char c : password.toCharArray()) {
-            if (Character.isUpperCase(c)) {
-                tieneMayuscula = true;
-            }
-            if (Character.isDigit(c)) {
-                tieneNumero = true;
-            }
+        if (!tieneMayuscula(password)) {
+            return false;
         }
-        return tieneMayuscula && tieneNumero;
+        if (!tieneDigito(password)) {
+            return false;
+        }
+        if (!tieneCaracterEspecial(password)) {
+            return false;
+        }
+        return true;
     }
 
-    
     public static String getMensajeValidacionPassword(String password) {
-        if (password == null || password.isEmpty()) {
-            return "La contraseña no puede estar vacía";
+        if (password == null || password.length() < 5) {
+            return "La contrasena debe tener al menos 5 caracteres";
         }
-        if (password.length() < 6) {
-            return "Mínimo 6 caracteres";
+        if (!tieneMayuscula(password)) {
+            return "La contrasena debe tener al menos una mayuscula";
         }
-        boolean tieneMayuscula = false;
-        boolean tieneNumero = false;
-        for (char c : password.toCharArray()) {
-            if (Character.isUpperCase(c)) {
-                tieneMayuscula = true;
-            }
-            if (Character.isDigit(c)) {
-                tieneNumero = true;
-            }
+        if (!tieneDigito(password)) {
+            return "La contrasena debe tener al menos un numero";
         }
-        if (!tieneMayuscula) {
-            return "Debe contener al menos una mayúscula";
+        if (!tieneCaracterEspecial(password)) {
+            return "La contrasena debe tener al menos un caracter especial";
         }
-        if (!tieneNumero) {
-            return "Debe contener al menos un número";
-        }
-        return "OK";
+        return "Contrasena invalida";
     }
 
-    // Getter del usuario logueado
+    private static boolean tieneMayuscula(String s) {
+        for (char c : s.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean tieneDigito(String s) {
+        for (char c : s.toCharArray()) {
+            if (Character.isDigit(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean tieneCaracterEspecial(String s) {
+        String especiales = "!@#$%^&*_\\-+=?/\\\\.,;:'\"~`|<>()[]{}";
+        for (char c : s.toCharArray()) {
+            if (especiales.indexOf(c) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void guardarPerfil(Usuario usuario, String carpeta) throws Exception {
+        gestorArchivos.guardar(usuario, carpeta + "perfil.bin");
+    }
+
     public Usuario getUsuarioActual() {
         return usuarioActual;
     }
 
     public void cerrarSesion() {
-        this.usuarioActual = null;
+        usuarioActual = null;
     }
 
-    public boolean hayUsuarioLogueado() {
+    public boolean hayUsuarioActivo() {
         return usuarioActual != null;
     }
 }

@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.flowfree.modelo;
 
 import java.io.Serializable;
@@ -14,7 +10,7 @@ public class Estadisticas implements Serializable {
     private int partidasJugadas;
     private int nivelesCompletados;
     private int nivelMaxAlcanzado;
-    private long tiempoTotalJugado;     
+    private long tiempoTotalJugado;
     private int puntajeTotal;
     private int mejorPuntaje;
     private int movimientosTotales;
@@ -32,8 +28,11 @@ public class Estadisticas implements Serializable {
         this.fallosTotales = 0;
     }
 
-    public void registrarNivelCompletado(int puntaje, long tiempo,
-            int movimientos) {
+    public Estadisticas() {
+        this("");
+    }
+
+    public void registrarNivelCompletado(int puntaje, long tiempo, int movimientos) {
         nivelesCompletados++;
         partidasJugadas++;
         puntajeTotal += puntaje;
@@ -54,6 +53,16 @@ public class Estadisticas implements Serializable {
             return 0;
         }
         return (double) tiempoTotalJugado / nivelesCompletados;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setNivelMaxAlcanzado(int n) {
+        if (n > nivelMaxAlcanzado) {
+            nivelMaxAlcanzado = n;
+        }
     }
 
     public String getUsername() {
@@ -90,11 +99,5 @@ public class Estadisticas implements Serializable {
 
     public int getFallosTotales() {
         return fallosTotales;
-    }
-
-    public void setNivelMaxAlcanzado(int n) {
-        if (n > this.nivelMaxAlcanzado) {
-            this.nivelMaxAlcanzado = n;
-        }
     }
 }

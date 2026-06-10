@@ -2,6 +2,10 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
+ /*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package com.flowfree.pantallas;
 
 import com.badlogic.gdx.Gdx;
@@ -15,9 +19,9 @@ import com.flowfree.modelo.Usuario;
 
 public class PantallaMapa extends PantallaBase {
 
-    private BitmapFont fuente;        
-    private BitmapFont fuenteGrande;  
-    private BitmapFont fuenteSmall;   
+    private BitmapFont fuente;
+    private BitmapFont fuenteGrande;
+    private BitmapFont fuenteSmall;
     private GlyphLayout layout;
 
     private float anchoVentana, altoVentana, xCentro;
@@ -116,17 +120,18 @@ public class PantallaMapa extends PantallaBase {
             float nx = startX + i * espaciadoX;
             boolean desbloqueado = (i + 1) <= nivelMax;
             fuente.setColor(desbloqueado ? Color.WHITE : COLOR_TEXTO_GRIS);
-            dibujarTextoCentrado(fuente, String.valueOf(i + 1), nx + radioNodo, nodoY + radioNodo + 10f);
+
+            if (desbloqueado) {
+                dibujarTextoCentrado(fuente, String.valueOf(i + 1), nx + radioNodo, nodoY + radioNodo + 10f);
+            } else {
+                fuenteSmall.setColor(COLOR_TEXTO_GRIS);
+                dibujarTextoCentrado(fuenteSmall, "[X]", nx + radioNodo, nodoY + radioNodo + 8f);
+            }
 
             fuenteSmall.setColor(desbloqueado ? COLORES_NIVEL[i] : COLOR_TEXTO_GRIS);
             String[] lineas = NOMBRES_NIVEL[i].split("\n");
             for (int l = 0; l < lineas.length; l++) {
                 dibujarTextoCentrado(fuenteSmall, lineas[l], nx + radioNodo, nodoY - 20f - l * 18f);
-            }
-
-            if (!desbloqueado) {
-                fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-                dibujarTextoCentrado(fuenteSmall, "[X]", nx + radioNodo, nodoY + radioNodo + 8f);
             }
         }
 
@@ -157,7 +162,9 @@ public class PantallaMapa extends PantallaBase {
             float nx = startX + i * espaciadoX;
             if (dentroDeCirculo(mx, my, nx + radioNodo, nodoY + radioNodo, radioNodo)) {
                 if ((i + 1) <= nivelMax) {
-                    System.out.println("Nivel seleccionado: " + (i + 1));
+                    System.out.println("Iniciando nivel " + (i + 1));
+                } else {
+                    System.out.println("Nivel " + (i + 1) + " bloqueado");
                 }
                 return;
             }
@@ -189,5 +196,20 @@ public class PantallaMapa extends PantallaBase {
         if (fuenteSmall != null) {
             fuenteSmall.dispose();
         }
+    }
+
+    @Override
+    public void pause() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public void resume() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public void hide() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 }
