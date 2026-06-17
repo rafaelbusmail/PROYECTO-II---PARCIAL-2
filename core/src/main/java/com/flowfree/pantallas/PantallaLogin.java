@@ -7,500 +7,448 @@ package com.flowfree.pantallas;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.TextField;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.flowfree.FlowFreeGame;
 import com.flowfree.datos.GestorUsuarios;
+import com.flowfree.datos.Traductor;
+import com.flowfree.modelo.Reto;
+import java.util.List;
 
 public class PantallaLogin extends PantallaBase {
 
-    private BitmapFont fuente;
-    private BitmapFont fuenteGrande;
+    private Stage stage;
+    private Skin skin;
+
+    private TextField tfNombre;
+    private TextField tfUsername;
+    private TextField tfPassword;
+    private TextField tfConfirm;
+
+    private TextButton btnPrincipal;
+    private TextButton btnSecundario;
+    private TextButton btnTogglePass;
+    private boolean passVisible = false;
+
+    private Label lblMensaje;
+    private Label lblSubtitulo;
+
+    private boolean modoRegistro = false;
+
+    private BitmapFont fuenteTitulo;
     private GlyphLayout layout;
 
-    private StringBuilder campoUsername;
-    private StringBuilder campoPassword;
-    private StringBuilder campoNombre;
-    private StringBuilder campoPasswordConfirm;
-
-    private boolean modoRegistro;
-    private int campoActivo;
-    private String mensajeError;
-    private String mensajeExito;
-    private boolean mostrarPassword;
-
-    private float anchoVentana, altoVentana;
-    private float anchoCampo, altoCampo, xCentro;
-    private float yUsername, yPassword, yNombre, yConfirm;
-    private float yBotonPrincipal, yBotonSecundario;
-    private float yMensaje;   
-
-    private static final int MAX_CAMPO = 30;
-    private static final float PANEL_W = 480f;
-    private static final float BTN_W = 320f;
-    private static final float BTN_H = 46f;
-    private static final float CAMPO_H = 44f;
-    private static final float LABEL_H = 20f; 
+    private static final Color COLOR_CAMPO_BG = new Color(0.14f, 0.14f, 0.20f, 1f);
+    private static final Color COLOR_CAMPO_ACTIVO = new Color(0.18f, 0.18f, 0.28f, 1f);
+    private static final Color COLOR_CURSOR = new Color(0.30f, 0.70f, 1.00f, 1f);
 
     public PantallaLogin(FlowFreeGame juego) {
         super(juego);
-        campoUsername = new StringBuilder();
-        campoPassword = new StringBuilder();
-        campoNombre = new StringBuilder();
-        campoPasswordConfirm = new StringBuilder();
-        modoRegistro = false;
-        campoActivo = 0;
-        mensajeError = "";
-        mensajeExito = "";
-        mostrarPassword = false;
     }
 
     @Override
     public void show() {
-        fuente = crearFuente(20);
-        fuenteGrande = crearFuente(36);
+        fuenteTitulo = crearFuente(34);
         layout = new GlyphLayout();
-        recalcularLayout();
+
+        stage = new Stage(new ScreenViewport());
+        Gdx.input.setInputProcessor(stage);
+
+        skin = construirSkin();
+
+        stage.addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
+            @Override
+            public boolean keyDown(InputEvent event, int keycode) {
+                if (keycode == Input.Keys.ENTER) {
+                    if (modoRegistro) {
+                        ejecutarRegistro();
+                    } else {
+                        ejecutarLogin();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        construirUI();
     }
 
-    @Override
-    public void resize(int width, int height) {
-        recalcularLayout();
+    private Skin construirSkin() {
+        Skin s = new Skin();
+
+        BitmapFont fLabel = crearFuente(16);
+        BitmapFont fCampo = crearFuente(17);
+        BitmapFont fBoton = crearFuente(16);
+        BitmapFont fMensaje = crearFuente(15);
+
+        s.add("default", fLabel);
+        s.add("campo", fCampo);
+        s.add("boton", fBoton);
+        s.add("mensaje", fMensaje);
+
+        s.add("blanco", crearPixmapTexture(1, 1, Color.WHITE));
+        s.add("negro", crearPixmapTexture(1, 1, Color.BLACK));
+        s.add("campoBg", crearPixmapTexture(1, 1, COLOR_CAMPO_BG));
+        s.add("acento", crearPixmapTexture(1, 1, COLOR_ACENTO));
+        s.add("botonBg", crearPixmapTexture(1, 1, COLOR_BOTON));
+        s.add("botonAcc", crearPixmapTexture(1, 1, COLOR_ACENTO));
+        s.add("error", crearPixmapTexture(1, 1, new Color(1f, 0.2f, 0.2f, 1f)));
+        s.add("exito", crearPixmapTexture(1, 1, COLOR_EXITO));
+
+        TextField.TextFieldStyle tfStyle = new TextField.TextFieldStyle();
+        tfStyle.font = s.getFont("campo");
+        tfStyle.fontColor = Color.WHITE;
+        tfStyle.background = s.newDrawable("campoBg");
+        tfStyle.focusedBackground = s.newDrawable("campoBg",
+                new Color(0.22f, 0.22f, 0.32f, 1f));
+        tfStyle.cursor = s.newDrawable("acento", 1f, 1f, 1f, 1f);
+        tfStyle.selection = s.newDrawable("acento", 0.3f, 0.6f, 1f, 0.4f);
+        tfStyle.messageFontColor = COLOR_TEXTO_GRIS;
+        tfStyle.messageFont = s.getFont("campo");
+        s.add("default", tfStyle);
+
+        TextButton.TextButtonStyle btnAccStyle = new TextButton.TextButtonStyle();
+        btnAccStyle.font = s.getFont("boton");
+        btnAccStyle.fontColor = new Color(0.05f, 0.05f, 0.10f, 1f);
+        btnAccStyle.up = s.newDrawable("botonAcc");
+        btnAccStyle.down = s.newDrawable("botonAcc",
+                new Color(0.6f, 0.6f, 0.6f, 1f));
+        btnAccStyle.over = s.newDrawable("botonAcc",
+                new Color(1.15f, 1.15f, 1.15f, 1f));
+        s.add("acento", btnAccStyle);
+
+        TextButton.TextButtonStyle btnSecStyle = new TextButton.TextButtonStyle();
+        btnSecStyle.font = s.getFont("boton");
+        btnSecStyle.fontColor = COLOR_TEXTO_GRIS;
+        btnSecStyle.up = s.newDrawable("botonBg");
+        btnSecStyle.down = s.newDrawable("botonBg",
+                new Color(0.6f, 0.6f, 0.6f, 1f));
+        btnSecStyle.over = s.newDrawable("botonBg",
+                new Color(1.15f, 1.15f, 1.15f, 1f));
+        s.add("secundario", btnSecStyle);
+
+        Label.LabelStyle lsDefault = new Label.LabelStyle(
+                s.getFont("default"), COLOR_TEXTO_GRIS);
+        s.add("default", lsDefault);
+
+        Label.LabelStyle lsError = new Label.LabelStyle(
+                s.getFont("mensaje"), COLOR_ERROR);
+        s.add("error", lsError);
+
+        Label.LabelStyle lsExito = new Label.LabelStyle(
+                s.getFont("mensaje"), COLOR_EXITO);
+        s.add("exito", lsExito);
+
+        Label.LabelStyle lsMensaje = new Label.LabelStyle(
+                s.getFont("mensaje"), Color.WHITE);
+        s.add("mensaje", lsMensaje);
+
+        return s;
     }
 
-    private void recalcularLayout() {
-        anchoVentana = Gdx.graphics.getWidth();
-        altoVentana = Gdx.graphics.getHeight();
-        anchoCampo = Math.min(400f, anchoVentana * 0.72f);
-        altoCampo = CAMPO_H;
-        xCentro = anchoVentana / 2f;
-        calcularPosiciones();
+    private com.badlogic.gdx.graphics.Texture crearPixmapTexture(
+            int w, int h, Color c) {
+        com.badlogic.gdx.graphics.Pixmap pm
+                = new com.badlogic.gdx.graphics.Pixmap(w, h,
+                        com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        pm.setColor(c);
+        pm.fill();
+        com.badlogic.gdx.graphics.Texture tex
+                = new com.badlogic.gdx.graphics.Texture(pm);
+        pm.dispose();
+        return tex;
     }
+    
+    private void configurarSiguienteCampo(final TextField actual, final TextField siguiente) {
+    actual.addListener(new com.badlogic.gdx.scenes.scene2d.InputListener() {
+        @Override
+        public boolean keyDown(InputEvent event, int keycode) {
+            if (keycode == Input.Keys.DOWN && siguiente != null) {
+                stage.setKeyboardFocus(siguiente);
+                return true;
+            }
+            return false;
+        }
+    });
+}
 
-    private void calcularPosiciones() {
-        float gap = 78f;   
-        float cy = altoVentana / 2f;
+    private void construirUI() {
+        stage.clear();
+
+        tfNombre = crearTextField(Traductor.nombreCompleto(juego.idiomaActual), false);
+        tfUsername = crearTextField(Traductor.usuario(juego.idiomaActual), false);
+        tfPassword = crearTextField(Traductor.contrasena(juego.idiomaActual), true);
+        tfConfirm = crearTextField(Traductor.confirmarContrasena(juego.idiomaActual), true);
+
+        configurarSiguienteCampo(tfNombre, tfUsername);
+        configurarSiguienteCampo(tfUsername, tfPassword);
+        configurarSiguienteCampo(tfPassword, tfConfirm);
+        configurarSiguienteCampo(tfConfirm, tfNombre); 
+
+        btnTogglePass = new TextButton(Traductor.mostrar(juego.idiomaActual), skin, "secundario");
+        btnTogglePass.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent e, float x, float y) {
+                alternarPassword();
+                btnTogglePass.setText(passVisible ? Traductor.ocultar(juego.idiomaActual) : Traductor.mostrar(juego.idiomaActual));
+            }
+        });
+
+        btnPrincipal = new TextButton(
+                modoRegistro ? Traductor.registrarse(juego.idiomaActual) : Traductor.iniciarSesion(juego.idiomaActual),
+                skin, "acento");
+        btnSecundario = new TextButton(
+                modoRegistro ? "Ya tienes cuenta? Iniciar sesion"
+                        : "No tienes cuenta? Registrarse",
+                skin, "secundario");
+
+        btnPrincipal.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent e, float x, float y) {
+                if (modoRegistro) {
+                    ejecutarRegistro();
+                } else {
+                    ejecutarLogin();
+                }
+            }
+        });
+        btnSecundario.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent e, float x, float y) {
+                cambiarModo();
+            }
+        });
+
+        lblSubtitulo = new Label(
+                modoRegistro ? "Crear cuenta" : "Iniciar sesion",
+                skin, "default");
+        lblMensaje = new Label("", skin, "mensaje");
+
+        Table root = new Table();
+        root.setFillParent(true);  
+
+        Table panel = new Table();
+        panel.setBackground(skin.newDrawable("campoBg",
+                new Color(0.12f, 0.12f, 0.18f, 1f)));
+
+        float panelW = Math.min(460f, stage.getWidth() * 0.85f);
+        float btnW = panelW - 80f;
+        float campoW = panelW - 60f;
+        float campoH = 44f;
+        float gap = 14f;
+
+        panel.add(lblSubtitulo).colspan(2).padTop(12f).padBottom(6f).row();
 
         if (modoRegistro) {
-            yNombre = cy + 145f;
-            yUsername = yNombre - gap;
-            yPassword = yUsername - gap;
-            yConfirm = yPassword - gap;
-            yBotonPrincipal = yConfirm - 85f;
-            yBotonSecundario = yBotonPrincipal - BTN_H - 14f;
-        } else {
-            yUsername = cy + 60f;
-            yPassword = yUsername - gap;
-            yBotonPrincipal = yPassword - 90f;
-            yBotonSecundario = yBotonPrincipal - BTN_H - 14f;
+            panel.add(new Label(Traductor.nombreCompleto(juego.idiomaActual), skin)).left()
+                    .padLeft(10f).padTop(gap).row();
+            panel.add(tfNombre).width(campoW).height(campoH)
+                    .padLeft(10f).padRight(10f).padBottom(4f).row();
         }
 
-        yMensaje = yBotonSecundario - 38f;
+        panel.add(new Label(Traductor.usuario(juego.idiomaActual), skin)).left()
+                .padLeft(10f).padTop(gap).row();
+        panel.add(tfUsername).width(campoW).height(campoH)
+                .padLeft(10f).padRight(10f).padBottom(4f).row();
+
+        Table rowPass = new Table();
+        rowPass.add(new Label(Traductor.contrasena(juego.idiomaActual), skin)).left().expandX();
+        panel.add(rowPass).width(campoW).padLeft(10f).padTop(gap).row();
+        Table rowPassField = new Table();
+        rowPassField.add(tfPassword).width(campoW - 54f).height(campoH);
+        rowPassField.add(btnTogglePass).width(50f).height(campoH).padLeft(4f);
+        panel.add(rowPassField).width(campoW).padLeft(10f).padRight(10f).padBottom(4f).row();
+
+        if (modoRegistro) {
+            Label lblReq = new Label(
+                    "Min 5 chars, 1 MAYUSCULA, 1 numero, 1 especial",
+                    skin);
+            lblReq.setColor(new Color(0.50f, 0.50f, 0.65f, 1f));
+            panel.add(lblReq).left().padLeft(10f).padBottom(2f).row();
+
+            panel.add(new Label(Traductor.confirmarContrasena(juego.idiomaActual), skin)).left()
+                    .padLeft(10f).padTop(gap).row();
+            panel.add(tfConfirm).width(campoW).height(campoH)
+                    .padLeft(10f).padRight(10f).padBottom(4f).row();
+        }
+
+        panel.add(lblMensaje).colspan(2).padTop(8f).padBottom(4f).row();
+
+        panel.add(btnPrincipal).width(btnW).height(50f)
+                .padTop(8f).padBottom(6f).row();
+        panel.add(btnSecundario).width(btnW).height(44f)
+                .padBottom(16f).row();
+
+        root.add(panel).width(panelW).pad(20f);
+        stage.addActor(root);
+
+        stage.setKeyboardFocus(modoRegistro ? tfNombre : tfUsername);
+    }
+
+    private TextField crearTextField(String placeholder, boolean password) {
+        TextField tf = new TextField("", skin);
+        tf.setMessageText(placeholder);
+        if (password) {
+            tf.setPasswordMode(true);
+            tf.setPasswordCharacter('*');
+        }
+        return tf;
+    }
+
+    private void alternarPassword() {
+        passVisible = !passVisible;
+        tfPassword.setPasswordMode(!passVisible);
+        tfConfirm.setPasswordMode(!passVisible);
     }
 
     @Override
     public void render(float delta) {
         limpiarPantalla();
-        manejarInput();
 
-        float panelH = modoRegistro ? 570f : 400f;
-        float panelX = xCentro - PANEL_W / 2f;
-        float panelY = altoVentana / 2f - panelH / 2f;
+        float W = Gdx.graphics.getWidth();
+        float H = Gdx.graphics.getHeight();
+        float cx = W / 2f;
 
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        juego.shapeRenderer.setColor(COLOR_PANEL);
-        juego.shapeRenderer.rect(panelX, panelY, PANEL_W, panelH);
-
         juego.shapeRenderer.setColor(COLOR_ACENTO);
-        juego.shapeRenderer.rect(panelX + 20, panelY + panelH - 4, PANEL_W - 40, 3);
-
-        if (modoRegistro) {
-            dibujarCampo(xCentro - anchoCampo / 2f, yNombre, anchoCampo, altoCampo, campoActivo == 0);
-        }
-        dibujarCampo(xCentro - anchoCampo / 2f, yUsername, anchoCampo, altoCampo, campoActivo == (modoRegistro ? 1 : 0));
-        dibujarCampo(xCentro - anchoCampo / 2f, yPassword, anchoCampo, altoCampo, campoActivo == (modoRegistro ? 2 : 1));
-        if (modoRegistro) {
-            dibujarCampo(xCentro - anchoCampo / 2f, yConfirm, anchoCampo, altoCampo, campoActivo == 3);
-        }
-
-        dibujarBoton(xCentro - BTN_W / 2f, yBotonPrincipal, BTN_W, BTN_H, COLOR_ACENTO);
-        dibujarBoton(xCentro - BTN_W / 2f, yBotonSecundario, BTN_W, BTN_H, COLOR_BOTON);
-
+        juego.shapeRenderer.rect(0, H - 4f, W, 4f);
         juego.shapeRenderer.end();
 
         juego.batch.begin();
-
-        fuenteGrande.setColor(COLOR_ACENTO);
-        dibujarTextoCentrado(fuenteGrande, "FLOW FREE",
-                xCentro, panelY + panelH - 18f);
-
-        fuente.setColor(COLOR_TEXTO_GRIS);
-        dibujarTextoCentrado(fuente, modoRegistro ? "Crear cuenta" : "Iniciar sesión",
-                xCentro, panelY + panelH - 58f);
-
-        fuente.setColor(COLOR_TEXTO_GRIS);
-        if (modoRegistro) {
-            fuente.draw(juego.batch, "Nombre completo",
-                    xCentro - anchoCampo / 2f, yNombre + altoCampo + LABEL_H + 2f);
-        }
-        fuente.draw(juego.batch, "Usuario",
-                xCentro - anchoCampo / 2f, yUsername + altoCampo + LABEL_H + 2f);
-        fuente.draw(juego.batch, "Contraseña",
-                xCentro - anchoCampo / 2f, yPassword + altoCampo + LABEL_H + 2f);
-        if (modoRegistro) {
-            fuente.draw(juego.batch, "Confirmar contraseña",
-                    xCentro - anchoCampo / 2f, yConfirm + altoCampo + LABEL_H + 2f);
-        }
-
-        fuente.setColor(COLOR_TEXTO);
-        if (modoRegistro) {
-            fuente.draw(juego.batch, campoNombre.toString(),
-                    xCentro - anchoCampo / 2f + 10f, yNombre + altoCampo / 2f + 7f);
-        }
-        fuente.draw(juego.batch, campoUsername.toString(),
-                xCentro - anchoCampo / 2f + 10f, yUsername + altoCampo / 2f + 7f);
-
-        String passVisible = mostrarPassword
-                ? campoPassword.toString()
-                : "*".repeat(campoPassword.length());
-        fuente.draw(juego.batch, passVisible,
-                xCentro - anchoCampo / 2f + 10f, yPassword + altoCampo / 2f + 7f);
-
-        if (modoRegistro) {
-            String confirmVisible = mostrarPassword
-                    ? campoPasswordConfirm.toString()
-                    : "*".repeat(campoPasswordConfirm.length());
-            fuente.draw(juego.batch, confirmVisible,
-                    xCentro - anchoCampo / 2f + 10f, yConfirm + altoCampo / 2f + 7f);
-        }
-
-        fuente.setColor(COLOR_TEXTO_GRIS);
-        String toggleHint = mostrarPassword ? "[TAB] Ocultar" : "[TAB] Mostrar";
-        layout.setText(fuente, toggleHint);
-        fuente.draw(juego.batch, toggleHint,
-                xCentro + anchoCampo / 2f - layout.width - 4f,
-                yPassword + altoCampo + LABEL_H + 2f);
-
-        fuente.setColor(COLOR_FONDO);
-        dibujarTextoCentrado(fuente,
-                modoRegistro ? "REGISTRARSE" : "INICIAR SESIÓN",
-                xCentro, yBotonPrincipal + BTN_H / 2f + 7f);
-
-        fuente.setColor(COLOR_TEXTO_GRIS);
-        dibujarTextoCentrado(fuente,
-                modoRegistro ? "¿Ya tienes cuenta? Iniciar sesión"
-                        : "¿No tienes cuenta? Registrarse",
-                xCentro, yBotonSecundario + BTN_H / 2f + 7f);
-
-        if (!mensajeError.isEmpty()) {
-            fuente.setColor(COLOR_ERROR);
-            dibujarTextoCentrado(fuente, mensajeError, xCentro, yMensaje);
-        } else if (!mensajeExito.isEmpty()) {
-            fuente.setColor(COLOR_ACENTO);
-            dibujarTextoCentrado(fuente, mensajeExito, xCentro, yMensaje);
-        }
-
-        fuente.setColor(COLOR_TEXTO_GRIS);
-        dibujarTextoCentrado(fuente,
-                "[ENTER] Confirmar  [ESC] Limpiar  [↑↓] Cambiar campo",
-                xCentro, 30f);
-
+        fuenteTitulo.setColor(COLOR_ACENTO);
+        layout.setText(fuenteTitulo, "FLOW FREE");
+        fuenteTitulo.draw(juego.batch, "FLOW FREE",
+                cx - layout.width / 2f, H - 20f);
         juego.batch.end();
+
+        stage.act(delta);
+        stage.draw();
     }
 
-    private void manejarInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
-            mostrarPassword = !mostrarPassword;
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            limpiarCampos();
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            if (modoRegistro) {
-                ejecutarRegistro();
-            } else {
-                ejecutarLogin();
-            }
-        }
-
-        int maxCampo = modoRegistro ? 3 : 1;
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
-            campoActivo = Math.min(campoActivo + 1, maxCampo);
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            campoActivo = Math.max(campoActivo - 1, 0);
-        }
-
-        if (Gdx.input.justTouched()) {
-            float mx = Gdx.input.getX();
-            float my = altoVentana - Gdx.input.getY();
-            detectarCampoClickeado(mx, my);
-            detectarBotonClickeado(mx, my);
-        }
-
-        manejarEscritura();
+    @Override
+    public void resize(int width, int height) {
+        stage.getViewport().update(width, height, true);
+        construirUI(); 
     }
 
-    private void manejarEscritura() {
-        StringBuilder campo = getCampoActual();
-        if (campo == null) {
-            return;
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.BACKSPACE)) {
-            if (campo.length() > 0) {
-                campo.deleteCharAt(campo.length() - 1);
-            }
-            mensajeError = "";
-            return;
-        }
-
-        boolean shift = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
-                || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
-
-        for (int i = 0; i < 256; i++) {
-            if (!Gdx.input.isKeyJustPressed(i)) {
-                continue;
-            }
-            char c = keyToChar(i, shift);
-            if (c != 0 && campo.length() < MAX_CAMPO) {
-                if (c == ' ' && !(modoRegistro && campoActivo == 0)) {
-                    continue;
-                }
-                campo.append(c);
-                mensajeError = "";
-            }
-        }
+    @Override
+    public void pause() {
     }
 
-    private StringBuilder getCampoActual() {
-        if (modoRegistro) {
-            switch (campoActivo) {
-                case 0:
-                    return campoNombre;
-                case 1:
-                    return campoUsername;
-                case 2:
-                    return campoPassword;
-                case 3:
-                    return campoPasswordConfirm;
-            }
-        } else {
-            switch (campoActivo) {
-                case 0:
-                    return campoUsername;
-                case 1:
-                    return campoPassword;
-            }
-        }
-        return null;
+    @Override
+    public void resume() {
     }
 
-    private void detectarCampoClickeado(float mx, float my) {
-        float x = xCentro - anchoCampo / 2f;
-        if (modoRegistro) {
-            if (dentroDeRect(mx, my, x, yNombre, anchoCampo, altoCampo)) {
-                campoActivo = 0;
-                return;
-            }
-            if (dentroDeRect(mx, my, x, yUsername, anchoCampo, altoCampo)) {
-                campoActivo = 1;
-                return;
-            }
-            if (dentroDeRect(mx, my, x, yPassword, anchoCampo, altoCampo)) {
-                campoActivo = 2;
-                return;
-            }
-            if (dentroDeRect(mx, my, x, yConfirm, anchoCampo, altoCampo)) {
-                campoActivo = 3;
-                return;
-            }
-        } else {
-            if (dentroDeRect(mx, my, x, yUsername, anchoCampo, altoCampo)) {
-                campoActivo = 0;
-                return;
-            }
-            if (dentroDeRect(mx, my, x, yPassword, anchoCampo, altoCampo)) {
-                campoActivo = 1;
-                return;
-            }
-        }
-    }
-
-    private void detectarBotonClickeado(float mx, float my) {
-        if (dentroDeRect(mx, my, xCentro - BTN_W / 2f, yBotonPrincipal, BTN_W, BTN_H)) {
-            if (modoRegistro) {
-                ejecutarRegistro();
-            } else {
-                ejecutarLogin();
-            }
-        }
-        if (dentroDeRect(mx, my, xCentro - BTN_W / 2f, yBotonSecundario, BTN_W, BTN_H)) {
-            cambiarModo();
-        }
+    @Override
+    public void hide() {
     }
 
     private void ejecutarLogin() {
-        String user = campoUsername.toString().trim();
-        String pass = campoPassword.toString().trim();
+        String user = tfUsername.getText().trim();
+        String pass = tfPassword.getText().trim();
+
         if (user.isEmpty() || pass.isEmpty()) {
-            mensajeError = "Completa todos los campos";
+            setMensaje(Traductor.completarCampos(juego.idiomaActual), false);
             return;
         }
         if (juego.gestorUsuarios.validarLogin(user, pass)) {
-            mensajeError = "";
-            mensajeExito = "¡Bienvenido, " + user + "!";
+            List<Reto> completados = juego.gestorUsuarios.obtenerRetosCompletados();
+            StringBuilder msg = new StringBuilder();
+            for (Reto r : completados) {
+                String g = r.getGanador();
+                if (r.getGanador() != null) {
+                    if (r.getGanador().equals(juego.gestorUsuarios.getUsuarioActual().getUsername())) {
+                        msg.append("Ganaste reto Nv.").append(r.getNivel())
+                           .append(" contra ").append(r.getRemitente().equals(user.toUpperCase())
+                                   ? r.getDestinatario() : r.getRemitente()).append("! ");
+                    } else if (!r.getGanador().equals("EMPATE")) {
+                        msg.append("Perdiste reto Nv.").append(r.getNivel())
+                           .append(" contra ").append(r.getRemitente().equals(user.toUpperCase())
+                                   ? r.getDestinatario() : r.getRemitente()).append(". ");
+                    }
+                }
+            }
+            String notif = msg.toString();
+            if (!notif.isEmpty()) {
+                setMensaje(notif, true);
+            }
+
+            List<String> sols = juego.gestorUsuarios.obtenerSolicitudesPendientes();
+            if (!sols.isEmpty()) {
+                if (!notif.isEmpty()) notif += " | ";
+                notif += "Tienes " + sols.size() + " solicitud(es) de amistad pendiente(s)";
+            }
+
             juego.setScreen(new PantallaMenu(juego));
         } else {
-            mensajeError = "Usuario o contraseña incorrectos";
+            setMensaje(Traductor.credencialesIncorrectas(juego.idiomaActual), false);
         }
     }
 
     private void ejecutarRegistro() {
-        String nombre = campoNombre.toString().trim();
-        String user = campoUsername.toString().trim();
-        String pass = campoPassword.toString().trim();
-        String confirm = campoPasswordConfirm.toString().trim();
+        String nombre = tfNombre.getText().trim();
+        String user = tfUsername.getText().trim();
+        String pass = tfPassword.getText().trim();
+        String confirm = tfConfirm.getText().trim();
 
-        if (nombre.isEmpty() || user.isEmpty() || pass.isEmpty() || confirm.isEmpty()) {
-            mensajeError = "Completa todos los campos";
+        if (nombre.isEmpty() || user.isEmpty()
+                || pass.isEmpty() || confirm.isEmpty()) {
+            setMensaje(Traductor.completarCampos(juego.idiomaActual), false);
             return;
         }
         if (!GestorUsuarios.validarPassword(pass)) {
-            mensajeError = GestorUsuarios.getMensajeValidacionPassword(pass);
+            setMensaje(GestorUsuarios.getMensajeValidacionPassword(pass), false);
             return;
         }
         if (!pass.equals(confirm)) {
-            mensajeError = "Las contraseñas no coinciden";
+            setMensaje("Las contrasenas no coinciden", false);
             return;
         }
-
         if (juego.gestorUsuarios.crearUsuario(user, pass, nombre)) {
-            juego.gestorUsuarios.validarLogin(user, pass); // sets current user in gestor
-            mensajeError = "";
-            mensajeExito = "¡Cuenta creada! Bienvenido, " + nombre + "!";
+            juego.gestorUsuarios.validarLogin(user, pass);
             juego.setScreen(new PantallaMenu(juego));
         } else {
-            mensajeError = "El usuario ya existe";
+            setMensaje("El usuario ya existe", false);
         }
     }
 
     private void cambiarModo() {
         modoRegistro = !modoRegistro;
-        limpiarCampos();
-        campoActivo = 0;
-        calcularPosiciones();
+        tfNombre.setText("");
+        tfUsername.setText("");
+        tfPassword.setText("");
+        tfConfirm.setText("");
+        lblMensaje.setText("");
+        construirUI();
     }
 
-    private void limpiarCampos() {
-        campoUsername.setLength(0);
-        campoPassword.setLength(0);
-        campoNombre.setLength(0);
-        campoPasswordConfirm.setLength(0);
-        mensajeError = "";
-        mensajeExito = "";
-    }
-
-    private void dibujarCampo(float x, float y, float w, float h, boolean activo) {
-        juego.shapeRenderer.setColor(activo
-                ? new Color(0.18f, 0.18f, 0.28f, 1f)
-                : new Color(0.14f, 0.14f, 0.20f, 1f));
-        juego.shapeRenderer.rect(x, y, w, h);
-        juego.shapeRenderer.setColor(activo ? COLOR_ACENTO : COLOR_BORDE);
-        juego.shapeRenderer.rect(x, y, w, activo ? 2.5f : 1f);
-    }
-
-    private void dibujarBoton(float x, float y, float w, float h, Color color) {
-        juego.shapeRenderer.setColor(color);
-        juego.shapeRenderer.rect(x, y, w, h);
-    }
-
-    private void dibujarTextoCentrado(BitmapFont font, String texto, float cx, float y) {
-        layout.setText(font, texto);
-        font.draw(juego.batch, texto, cx - layout.width / 2f, y);
-    }
-
-    private boolean dentroDeRect(float mx, float my,
-            float rx, float ry, float rw, float rh) {
-        return mx >= rx && mx <= rx + rw && my >= ry && my <= ry + rh;
-    }
-
-    private char keyToChar(int keycode, boolean shift) {
-        if (keycode >= Input.Keys.A && keycode <= Input.Keys.Z) {
-            char base = (char) ('A' + (keycode - Input.Keys.A));
-            return shift ? base : Character.toLowerCase(base);
-        }
-        if (keycode >= Input.Keys.NUM_0 && keycode <= Input.Keys.NUM_9) {
-            if (!shift) {
-                return (char) ('0' + (keycode - Input.Keys.NUM_0));
-            }
-            char[] shiftDigits = {')', '!', '@', '#', '$', '%', '^', '&', '*', '('};
-            return shiftDigits[keycode - Input.Keys.NUM_0];
-        }
-        if (keycode >= Input.Keys.NUMPAD_0 && keycode <= Input.Keys.NUMPAD_9) {
-            return (char) ('0' + (keycode - Input.Keys.NUMPAD_0));
-        }
-        if (keycode == Input.Keys.SPACE) {
-            return ' ';
-        }
-        switch (keycode) {
-            case Input.Keys.PERIOD:
-                return shift ? '>' : '.';
-            case Input.Keys.COMMA:
-                return shift ? '<' : ',';
-            case Input.Keys.MINUS:
-                return shift ? '_' : '-';
-            case Input.Keys.EQUALS:
-                return shift ? '+' : '=';
-            case Input.Keys.SEMICOLON:
-                return shift ? ':' : ';';
-            case Input.Keys.APOSTROPHE:
-                return shift ? '"' : '\'';
-            case Input.Keys.SLASH:
-                return shift ? '?' : '/';
-            case Input.Keys.BACKSLASH:
-                return shift ? '|' : '\\';
-            case Input.Keys.LEFT_BRACKET:
-                return shift ? '{' : '[';
-            case Input.Keys.RIGHT_BRACKET:
-                return shift ? '}' : ']';
-            case Input.Keys.GRAVE:
-                return shift ? '~' : '`';
-            case Input.Keys.AT:
-                return '@';
-            case Input.Keys.STAR:
-                return '*';
-            case Input.Keys.POUND:
-                return '#';
-            default:
-                return 0;
-        }
+    private void setMensaje(String texto, boolean esExito) {
+        lblMensaje.setText(texto);
+        lblMensaje.setStyle(skin.get(
+                esExito ? "exito" : "error", Label.LabelStyle.class));
     }
 
     @Override
     public void dispose() {
-        if (fuente != null) {
-            fuente.dispose();
+        if (stage != null) {
+            stage.dispose();
         }
-        if (fuenteGrande != null) {
-            fuenteGrande.dispose();
+        if (skin != null) {
+            skin.dispose();
         }
-    }
-
-    @Override
-    public void pause() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void resume() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void hide() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        if (fuenteTitulo != null) {
+            fuenteTitulo.dispose();
+        }
     }
 }

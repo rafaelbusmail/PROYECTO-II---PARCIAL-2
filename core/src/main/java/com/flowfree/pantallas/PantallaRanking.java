@@ -12,20 +12,19 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.flowfree.FlowFreeGame;
 import com.flowfree.modelo.Usuario;
+import com.flowfree.datos.Traductor;
 import java.util.List;
 
 public class PantallaRanking extends PantallaBase {
 
-    private BitmapFont fuente;
-    private BitmapFont fuenteGrande;
-    private BitmapFont fuenteSmall;
+    private BitmapFont fuente, fuenteGrande, fuenteSmall;
     private GlyphLayout layout;
 
-    private float anchoVentana, altoVentana, xCentro;
+    private static final Color ORO = new Color(1.00f, 0.84f, 0.00f, 1f);
+    private static final Color PLATA = new Color(0.80f, 0.80f, 0.80f, 1f);
+    private static final Color BRONCE = new Color(0.80f, 0.50f, 0.20f, 1f);
 
-    private static final Color COLOR_ORO = new Color(1.00f, 0.84f, 0.00f, 1f);
-    private static final Color COLOR_PLATA = new Color(0.80f, 0.80f, 0.80f, 1f);
-    private static final Color COLOR_BRONCE = new Color(0.80f, 0.50f, 0.20f, 1f);
+    private int frameDelay = 5;
 
     public PantallaRanking(FlowFreeGame juego) {
         super(juego);
@@ -37,52 +36,66 @@ public class PantallaRanking extends PantallaBase {
         fuenteGrande = crearFuente(36);
         fuenteSmall = crearFuente(15);
         layout = new GlyphLayout();
-        anchoVentana = Gdx.graphics.getWidth();
-        altoVentana = Gdx.graphics.getHeight();
-        xCentro = anchoVentana / 2f;
+        frameDelay = 5;
+    }
+
+    @Override
+    public void resize(int w, int h) {
+    }
+
+    @Override
+    public void pause() {
+    }
+
+    @Override
+    public void resume() {
+    }
+
+    @Override
+    public void hide() {
     }
 
     @Override
     public void render(float delta) {
+        float W = Gdx.graphics.getWidth();
+        float H = Gdx.graphics.getHeight();
+        float cx = W / 2f;
+
         limpiarPantalla();
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            juego.setScreen(new PantallaMenu(juego));
-            return;
-        }
-        if (Gdx.input.justTouched()) {
-            float mx = Gdx.input.getX(), my = altoVentana - Gdx.input.getY();
-            if (mx >= 20f && mx <= 160f && my >= 20f && my <= 60f) {
+        if (frameDelay > 0) {
+            frameDelay--;
+        } else {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
                 juego.setScreen(new PantallaMenu(juego));
                 return;
+            }
+            if (Gdx.input.justTouched()) {
+                float mx = Gdx.input.getX(), my = H - Gdx.input.getY();
+                if (mx >= 20f && mx <= 160f && my >= 20f && my <= 60f) {
+                    juego.setScreen(new PantallaMenu(juego));
+                    return;
+                }
             }
         }
 
         List<Usuario> ranking = juego.gestorUsuarios.obtenerRanking();
-
         float filaH = 50f;
         int maxRows = Math.min(ranking.size(), 10);
         float headerH = 60f;
-        float panelH = headerH + maxRows * filaH + 40f;
-        if (panelH < 200f) {
-            panelH = 200f;
-        }
-        float panelW = Math.min(580f, anchoVentana - 40f);
-        float panelX = xCentro - panelW / 2f;
-        float panelY = altoVentana / 2f - panelH / 2f - 20f;
+        float panelH = Math.max(200f, headerH + maxRows * filaH + 40f);
+        float panelW = Math.min(580f, W - 40f);
+        float panelX = cx - panelW / 2f;
+        float panelY = H / 2f - panelH / 2f - 20f;
         float filaY0 = panelY + panelH - headerH - filaH;
 
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
         juego.shapeRenderer.setColor(0f, 0f, 0f, 0.35f);
         juego.shapeRenderer.rect(panelX + 4, panelY - 4, panelW, panelH);
-
         juego.shapeRenderer.setColor(COLOR_PANEL);
         juego.shapeRenderer.rect(panelX, panelY, panelW, panelH);
-
-        juego.shapeRenderer.setColor(COLOR_ORO);
+        juego.shapeRenderer.setColor(ORO);
         juego.shapeRenderer.rect(panelX + 20, panelY + panelH - 4, panelW - 40, 3);
-
         juego.shapeRenderer.setColor(new Color(0.10f, 0.10f, 0.16f, 1f));
         juego.shapeRenderer.rect(panelX + 10, filaY0 + filaH, panelW - 20, headerH - 16f);
 
@@ -92,74 +105,59 @@ public class PantallaRanking extends PantallaBase {
                 juego.shapeRenderer.setColor(new Color(0.11f, 0.11f, 0.17f, 1f));
                 juego.shapeRenderer.rect(panelX + 10, fy, panelW - 20, filaH);
             }
-            Color barColor = i == 0 ? COLOR_ORO : i == 1 ? COLOR_PLATA : i == 2 ? COLOR_BRONCE : COLOR_BORDE;
-            juego.shapeRenderer.setColor(barColor);
+            Color bar = i == 0 ? ORO : i == 1 ? PLATA : i == 2 ? BRONCE : COLOR_BORDE;
+            juego.shapeRenderer.setColor(bar);
             juego.shapeRenderer.rect(panelX + 10, fy, 4f, filaH);
         }
-
         juego.shapeRenderer.setColor(COLOR_BOTON);
         juego.shapeRenderer.rect(20f, 20f, 140f, 40f);
-
         juego.shapeRenderer.end();
 
         juego.batch.begin();
-
         fuenteGrande.setColor(COLOR_TEXTO);
-        dibujarTC(fuenteGrande, "RANKING GLOBAL", xCentro, altoVentana - 42f);
+        tc(fuenteGrande, Traductor.rankingGlobal(juego.idiomaActual), cx, H - 42f);
 
-        float colPos = panelX + 55f;
-        float colUser = panelX + 120f;
-        float colNivel = panelX + panelW - 200f;
-        float colPts = panelX + panelW - 80f;
+        float colPos = panelX + 55f, colUser = panelX + 120f;
+        float colNivel = panelX + panelW - 230f, colPts = panelX + panelW - 110f;
         float cabY = filaY0 + filaH + headerH - 28f;
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         fuenteSmall.draw(juego.batch, "#", colPos, cabY);
-        fuenteSmall.draw(juego.batch, "JUGADOR", colUser, cabY);
-        fuenteSmall.draw(juego.batch, "NIVEL", colNivel, cabY);
-        fuenteSmall.draw(juego.batch, "PUNTOS", colPts, cabY);
+        fuenteSmall.draw(juego.batch, Traductor.jugador(juego.idiomaActual), colUser, cabY);
+        fuenteSmall.draw(juego.batch, Traductor.nivelAbr(juego.idiomaActual), colNivel, cabY);
+        fuenteSmall.draw(juego.batch, Traductor.puntosRank(juego.idiomaActual), colPts, cabY);
 
         if (ranking.isEmpty()) {
             fuente.setColor(COLOR_TEXTO_GRIS);
-            dibujarTC(fuente, "Sin jugadores registrados aún", xCentro, altoVentana / 2f);
+            tc(fuente, Traductor.sinJugadores(juego.idiomaActual), cx, H / 2f);
         } else {
             for (int i = 0; i < maxRows; i++) {
                 Usuario u = ranking.get(i);
                 float fy = filaY0 - i * filaH + filaH / 2f + 7f;
-
-                Color posColor = i == 0 ? COLOR_ORO : i == 1 ? COLOR_PLATA
-                        : i == 2 ? COLOR_BRONCE : COLOR_TEXTO_GRIS;
-                fuente.setColor(posColor);
+                Color pc = i == 0 ? ORO : i == 1 ? PLATA : i == 2 ? BRONCE : COLOR_TEXTO_GRIS;
+                fuente.setColor(pc);
                 fuente.draw(juego.batch, String.valueOf(i + 1), colPos, fy);
-
-                Usuario actual = juego.gestorUsuarios.getUsuarioActual();
-                boolean esActual = actual != null
-                        && actual.getUsername().equals(u.getUsername());
-                fuente.setColor(esActual ? COLOR_ACENTO : COLOR_TEXTO);
-                fuente.draw(juego.batch, u.getUsername()
-                        + (esActual ? " ←" : ""), colUser, fy);
-
+                Usuario yo = juego.gestorUsuarios.getUsuarioActual();
+                boolean esYo = yo != null && yo.getUsername().equals(u.getUsername());
+                fuente.setColor(esYo ? COLOR_ACENTO : COLOR_TEXTO);
+                fuente.draw(juego.batch, u.getUsername() + (esYo ? " <-" : ""), colUser, fy);
                 fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-                fuenteSmall.draw(juego.batch,
-                        "Nv." + u.getNivelMaxDesbloqueado(), colNivel, fy);
-
-                fuente.setColor(i == 0 ? COLOR_ORO : COLOR_TEXTO);
-                fuente.draw(juego.batch,
-                        u.getEstadisticas().getPuntajeTotal() + " pts", colPts, fy);
+                fuenteSmall.draw(juego.batch, "Nv." + u.getNivelMaxDesbloqueado(), colNivel, fy);
+                String ptsTxt = u.getEstadisticas().getPuntajeTotal() + " pts";
+                fuente.setColor(i == 0 ? ORO : COLOR_TEXTO);
+                fuente.draw(juego.batch, ptsTxt, colPts, fy);
             }
         }
 
         fuente.setColor(COLOR_TEXTO);
-        fuente.draw(juego.batch, "< VOLVER", 35f, 47f);
-
+        fuente.draw(juego.batch, "< " + Traductor.volver(juego.idiomaActual), 35f, 47f);
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-        dibujarTC(fuenteSmall, "[ESC] Volver al menú", xCentro, 28f);
-
+        tc(fuenteSmall, "[ESC] " + Traductor.volver(juego.idiomaActual) + " al menu", cx, 28f);
         juego.batch.end();
     }
 
-    private void dibujarTC(BitmapFont font, String texto, float cx, float y) {
-        layout.setText(font, texto);
-        font.draw(juego.batch, texto, cx - layout.width / 2f, y);
+    private void tc(BitmapFont f, String t, float cx, float y) {
+        layout.setText(f, t);
+        f.draw(juego.batch, t, cx - layout.width / 2f, y);
     }
 
     @Override

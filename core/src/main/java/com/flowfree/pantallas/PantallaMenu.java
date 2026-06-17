@@ -14,25 +14,17 @@ import com.flowfree.modelo.Usuario;
 
 public class PantallaMenu extends PantallaBase {
 
-    private BitmapFont fuente;        
-    private BitmapFont fuenteGrande;  
-    private BitmapFont fuenteSmall;   
+    private BitmapFont fuente;
+    private BitmapFont fuenteGrande;
+    private BitmapFont fuenteSmall;
     private GlyphLayout layout;
 
-    private float anchoVentana, altoVentana, xCentro;
-
-    private static final String[] OPCIONES = {
-        "JUGAR", "MI PERFIL", "RANKING", "CERRAR SESIÓN"
+    private static final Color[] COLORES = {
+        new Color(0.20f, 0.80f, 0.60f, 1f), new Color(0.25f, 0.55f, 0.90f, 1f),
+        new Color(0.90f, 0.65f, 0.10f, 1f), new Color(0.70f, 0.20f, 0.20f, 1f),
+        new Color(0.50f, 0.15f, 0.15f, 1f)
     };
-
-    private static final Color[] COLORES_BOTONES = {
-        new Color(0.20f, 0.80f, 0.60f, 1f),
-        new Color(0.25f, 0.55f, 0.90f, 1f),
-        new Color(0.90f, 0.65f, 0.10f, 1f),
-        new Color(0.70f, 0.20f, 0.20f, 1f)
-    };
-
-    private int botonHover = -1;
+    private String[] opciones;
 
     public PantallaMenu(FlowFreeGame juego) {
         super(juego);
@@ -40,39 +32,72 @@ public class PantallaMenu extends PantallaBase {
 
     @Override
     public void show() {
+        juego.actualizarIdioma();
+        juego.iniciarMusica();
         fuente = crearFuente(22);
         fuenteGrande = crearFuente(44);
         fuenteSmall = crearFuente(16);
         layout = new GlyphLayout();
-        anchoVentana = Gdx.graphics.getWidth();
-        altoVentana = Gdx.graphics.getHeight();
-        xCentro = anchoVentana / 2f;
+        opciones = new String[]{
+            com.flowfree.datos.Traductor.jugar(juego.idiomaActual),
+            com.flowfree.datos.Traductor.miPerfil(juego.idiomaActual),
+            com.flowfree.datos.Traductor.ranking(juego.idiomaActual),
+            com.flowfree.datos.Traductor.cerrarSesion(juego.idiomaActual),
+            com.flowfree.datos.Traductor.salir(juego.idiomaActual)
+        };
+    }
+
+    @Override
+    public void resize(int w, int h) {
+    }
+
+    @Override
+    public void pause() {
+    }
+
+    @Override
+    public void resume() {
+    }
+
+    @Override
+    public void hide() {
     }
 
     @Override
     public void render(float delta) {
-        limpiarPantalla();
-        manejarInput();
+        float W = Gdx.graphics.getWidth();
+        float H = Gdx.graphics.getHeight();
+        float cx = W / 2f;
 
-        float mx = Gdx.input.getX();
-        float my = altoVentana - Gdx.input.getY();
         float anchoBoton = 320f, altoBoton = 54f, espaciado = 20f;
-        float totalH = OPCIONES.length * (altoBoton + espaciado);
-        float startY = altoVentana / 2f - totalH / 2f - 30f;
+        float totalH = opciones.length * (altoBoton + espaciado);
+        float startY = H / 2f - totalH / 2f - 30f;
+
+        limpiarPantalla();
+
+        if (Gdx.input.justTouched()) {
+            float mx = Gdx.input.getX(), my = H - Gdx.input.getY();
+            for (int i = 0; i < opciones.length; i++) {
+                float bx = cx - anchoBoton / 2f;
+                float by = startY + (opciones.length - 1 - i) * (altoBoton + espaciado);
+                if (dentroDeRect(mx, my, bx, by, anchoBoton, altoBoton)) {
+                    manejarOpcion(i);
+                    return;
+                }
+            }
+        }
+
+        float mx = Gdx.input.getX(), my = H - Gdx.input.getY();
 
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         juego.shapeRenderer.setColor(COLOR_ACENTO);
-        juego.shapeRenderer.rect(0, altoVentana - 4f, anchoVentana, 4f);
+        juego.shapeRenderer.rect(0, H - 4f, W, 4f);
 
-        botonHover = -1;
-        for (int i = 0; i < OPCIONES.length; i++) {
-            float bx = xCentro - anchoBoton / 2f;
-            float by = startY + (OPCIONES.length - 1 - i) * (altoBoton + espaciado);
+        for (int i = 0; i < opciones.length; i++) {
+            float bx = cx - anchoBoton / 2f;
+            float by = startY + (opciones.length - 1 - i) * (altoBoton + espaciado);
             boolean hover = dentroDeRect(mx, my, bx, by, anchoBoton, altoBoton);
-            if (hover) {
-                botonHover = i;
-            }
-            Color cb = COLORES_BOTONES[i];
+            Color cb = COLORES[i];
             Color cd = hover ? new Color(Math.min(cb.r + 0.1f, 1f), Math.min(cb.g + 0.1f, 1f), Math.min(cb.b + 0.1f, 1f), 1f) : cb;
             juego.shapeRenderer.setColor(cd);
             juego.shapeRenderer.rect(bx, by, anchoBoton, altoBoton);
@@ -83,46 +108,31 @@ public class PantallaMenu extends PantallaBase {
 
         juego.batch.begin();
         fuenteGrande.setColor(COLOR_ACENTO);
-        dibujarTextoCentrado(fuenteGrande, "FLOW FREE", xCentro, altoVentana - 60f);
+        tc(fuenteGrande, "FLOW FREE", cx, H - 60f);
 
         Usuario u = juego.gestorUsuarios.getUsuarioActual();
         if (u != null) {
             fuente.setColor(COLOR_TEXTO_GRIS);
-            dibujarTextoCentrado(fuente, "Hola, " + u.getNombreCompleto(), xCentro, altoVentana - 110f);
+            tc(fuente, com.flowfree.datos.Traductor.hola(juego.idiomaActual) + ", " + u.getNombreCompleto(), cx, H - 110f);
             fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-            String stats = "Nivel: " + u.getNivelMaxDesbloqueado()
-                    + "   Partidas: " + u.getEstadisticas().getPartidasJugadas()
-                    + "   Mejor: " + u.getEstadisticas().getMejorPuntaje() + " pts";
-            dibujarTextoCentrado(fuenteSmall, stats, xCentro, altoVentana - 140f);
+            long tiempo = u.getEstadisticas().getTiempoTotalJugado();
+            String tiempoStr = formatTiempo(tiempo);
+            String stats = com.flowfree.datos.Traductor.nivel(juego.idiomaActual) + ": " + u.getNivelMaxDesbloqueado()
+                    + "   " + com.flowfree.datos.Traductor.partidas(juego.idiomaActual) + ": " + u.getEstadisticas().getPartidasJugadas()
+                    + "   " + com.flowfree.datos.Traductor.tiempo(juego.idiomaActual) + ": " + tiempoStr
+                    + "   " + com.flowfree.datos.Traductor.mejor(juego.idiomaActual) + ": " + u.getEstadisticas().getMejorPuntaje() + " pts";
+            tc(fuenteSmall, stats, cx, H - 140f);
         }
 
-        for (int i = 0; i < OPCIONES.length; i++) {
-            float by = startY + (OPCIONES.length - 1 - i) * (altoBoton + espaciado);
+        for (int i = 0; i < opciones.length; i++) {
+            float by = startY + (opciones.length - 1 - i) * (altoBoton + espaciado);
             fuente.setColor(Color.WHITE);
-            dibujarTextoCentrado(fuente, OPCIONES[i], xCentro, by + altoBoton / 2f + 8f);
+            tc(fuente, opciones[i], cx, by + altoBoton / 2f + 8f);
         }
 
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         fuenteSmall.draw(juego.batch, "v1.0.0", 15f, 25f);
         juego.batch.end();
-    }
-
-    private void manejarInput() {
-        if (!Gdx.input.justTouched()) {
-            return;
-        }
-        float mx = Gdx.input.getX(), my = altoVentana - Gdx.input.getY();
-        float anchoBoton = 320f, altoBoton = 54f, espaciado = 20f;
-        float totalH = OPCIONES.length * (altoBoton + espaciado);
-        float startY = altoVentana / 2f - totalH / 2f - 30f;
-        for (int i = 0; i < OPCIONES.length; i++) {
-            float bx = xCentro - anchoBoton / 2f;
-            float by = startY + (OPCIONES.length - 1 - i) * (altoBoton + espaciado);
-            if (dentroDeRect(mx, my, bx, by, anchoBoton, altoBoton)) {
-                manejarOpcion(i);
-                return;
-            }
-        }
     }
 
     private void manejarOpcion(int i) {
@@ -140,12 +150,24 @@ public class PantallaMenu extends PantallaBase {
                 juego.gestorUsuarios.cerrarSesion();
                 juego.setScreen(new PantallaLogin(juego));
                 break;
+            case 4:
+                Gdx.app.exit();
+                break;
         }
     }
 
-    private void dibujarTextoCentrado(BitmapFont font, String texto, float cx, float y) {
-        layout.setText(font, texto);
-        font.draw(juego.batch, texto, cx - layout.width / 2f, y);
+    private String formatTiempo(long segundos) {
+        int h = (int)(segundos / 3600);
+        int m = (int)((segundos % 3600) / 60);
+        int s = (int)(segundos % 60);
+        if (h > 0) return h + "h " + m + "m";
+        if (m > 0) return m + "m " + s + "s";
+        return s + "s";
+    }
+
+    private void tc(BitmapFont f, String t, float cx, float y) {
+        layout.setText(f, t);
+        f.draw(juego.batch, t, cx - layout.width / 2f, y);
     }
 
     private boolean dentroDeRect(float mx, float my, float rx, float ry, float rw, float rh) {

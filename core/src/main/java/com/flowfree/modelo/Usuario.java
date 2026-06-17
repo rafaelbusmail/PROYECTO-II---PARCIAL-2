@@ -21,10 +21,13 @@ public class Usuario implements Serializable {
     private double puntuacionGeneral;
     private String avatarRuta;
 
- 
+    
     private Estadisticas estadisticas;
 
     private List<HistorialPartida> historial;
+    private List<String> amigos;
+    private List<String> solicitudesPendientes;
+    private boolean activo;
 
     public Usuario() {
         inicializarDefaults();
@@ -48,6 +51,9 @@ public class Usuario implements Serializable {
         avatarRuta = "";
         estadisticas = new Estadisticas(username != null ? username : "");
         historial = new ArrayList<>();
+        amigos = new ArrayList<>();
+        solicitudesPendientes = new ArrayList<>();
+        activo = true;
     }
 
     public String getUsername() {
@@ -102,6 +108,57 @@ public class Usuario implements Serializable {
         return historial;
     }
 
+    public boolean isActivo() {
+        return activo;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
+
+    public List<String> getAmigos() {
+        if (amigos == null) {
+            amigos = new ArrayList<>();
+        }
+        return amigos;
+    }
+
+    public boolean agregarAmigo(String usernameAmigo) {
+        if (usernameAmigo == null || usernameAmigo.equals(this.username)) {
+            return false;
+        }
+        String upper = usernameAmigo.toUpperCase();
+        if (!amigos.contains(upper)) {
+            amigos.add(upper);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean eliminarAmigo(String usernameAmigo) {
+        return amigos.remove(usernameAmigo.toUpperCase());
+    }
+
+    public List<String> getSolicitudesPendientes() {
+        if (solicitudesPendientes == null) {
+            solicitudesPendientes = new ArrayList<>();
+        }
+        return solicitudesPendientes;
+    }
+
+    public boolean agregarSolicitud(String username) {
+        String upper = username.toUpperCase();
+        if (!getSolicitudesPendientes().contains(upper) && !upper.equals(this.username)) {
+            solicitudesPendientes.add(upper);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean eliminarSolicitud(String username) {
+        return getSolicitudesPendientes().remove(username.toUpperCase());
+    }
+
     public void setUsername(String username) {
         this.username = username;
         if (estadisticas != null) {
@@ -142,8 +199,10 @@ public class Usuario implements Serializable {
 
     public void incrementarPartidas() {
         estadisticas.registrarFallo();
+        }
 
     public void incrementarNivelesCompletados() {
+         }
 
     public void agregarTiempo(long segundos) {
         tiempoTotalJugadoSegundos += segundos;

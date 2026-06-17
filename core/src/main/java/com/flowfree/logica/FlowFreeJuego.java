@@ -178,15 +178,58 @@ public class FlowFreeJuego extends Juego {
         }
         Celda c = grid[fila][col];
 
-        if (!c.esPuntoFijo()) {
+        if (c.estaVacia()) {
             return;
         }
 
-        colorActivo = c.getColor();
-        rutaActiva.clear();
-        rutaActiva.add(new int[]{fila, col});
+        if (c.esPuntoFijo()) {
+            colorActivo = c.getColor();
+            rutaActiva.clear();
+            rutaActiva.add(new int[]{fila, col});
+            limpiarColor(colorActivo);
+        } else if (c.getColor() != null) {
+            colorActivo = c.getColor();
 
-        limpiarColor(colorActivo);
+            int tam = nivelConfig.getTamano();
+            List<int[]> endpoints = new ArrayList<>();
+            for (int f = 0; f < tam; f++) {
+                for (int r = 0; r < tam; r++) {
+                    if (grid[f][r].getColor() == colorActivo && contarVecinosMismoColor(f, r) <= 1) {
+                        endpoints.add(new int[]{f, r});
+                    }
+                }
+            }
+
+            int[] start = endpoints.isEmpty() ? new int[]{fila, col} : endpoints.get(0);
+            for (int[] ep : endpoints) {
+                int d = Math.abs(ep[0] - fila) + Math.abs(ep[1] - col);
+                int db = Math.abs(start[0] - fila) + Math.abs(start[1] - col);
+                if (d < db) start = ep;
+            }
+
+            rutaActiva.clear();
+            boolean[][] vis = new boolean[tam][tam];
+            int[] cur = start;
+            vis[cur[0]][cur[1]] = true;
+            rutaActiva.add(new int[]{cur[0], cur[1]});
+
+            while (true) {
+                int[] next = null;
+                for (int[] d : new int[][]{{-1,0},{1,0},{0,-1},{0,1}}) {
+                    int nf = cur[0] + d[0], nc = cur[1] + d[1];
+                    if (nf < 0 || nf >= tam || nc < 0 || nc >= tam) continue;
+                    if (vis[nf][nc]) continue;
+                    if (grid[nf][nc].getColor() == colorActivo) {
+                        next = new int[]{nf, nc};
+                        break;
+                    }
+                }
+                if (next == null) break;
+                rutaActiva.add(next);
+                vis[next[0]][next[1]] = true;
+                cur = next;
+            }
+        }
     }
 
     public boolean continuarRuta(int fila, int col) {
@@ -267,6 +310,19 @@ public class FlowFreeJuego extends Juego {
 
     private boolean esAdyacente(int f1, int c1, int f2, int c2) {
         return (Math.abs(f1 - f2) + Math.abs(c1 - c2)) == 1;
+    }
+
+    private int contarVecinosMismoColor(int fila, int col) {
+        if (grid[fila][col].getColor() == null) return 0;
+        int tam = nivelConfig.getTamano();
+        ColorFlujo colr = grid[fila][col].getColor();
+        int count = 0;
+        for (int[] d : new int[][]{{-1,0},{1,0},{0,-1},{0,1}}) {
+            int nf = fila + d[0], nc = col + d[1];
+            if (nf < 0 || nf >= tam || nc < 0 || nc >= tam) continue;
+            if (grid[nf][nc].getColor() == colr) count++;
+        }
+        return count;
     }
 
     public void notificarTiempoAgotado() {

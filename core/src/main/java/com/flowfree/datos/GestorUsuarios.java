@@ -4,6 +4,7 @@ import com.flowfree.interfaces.IGestionable;
 import com.flowfree.modelo.Estadisticas;
 import com.flowfree.modelo.HistorialPartida;
 import com.flowfree.modelo.Preferencias;
+import com.flowfree.modelo.Reto;
 import com.flowfree.modelo.Usuario;
 
 import java.io.File;
@@ -92,6 +93,9 @@ public class GestorUsuarios implements IGestionable {
         try {
             Usuario usuario = (Usuario) gestorArchivos.cargar(rutaPerfil);
             if (usuario != null && usuario.getPassword().equals(password)) {
+                if (!usuario.isActivo()) {
+                    return false;
+                }
                 usuarioActual = usuario;
                 usuarioActual.setUltimaConexion(LocalDate.now());
                 guardarPerfil(usuarioActual, carpeta);
@@ -122,6 +126,150 @@ public class GestorUsuarios implements IGestionable {
             usuarioActual = null;
         }
         return true;
+    }
+
+    public boolean desactivarCuenta() {
+        if (usuarioActual == null) return false;
+        usuarioActual.setActivo(false);
+        String carpeta = BASE_DIR + usuarioActual.getUsername() + "/";
+        try {
+            guardarPerfil(usuarioActual, carpeta);
+            usuarioActual = null;
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error al desactivar cuenta: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean enviarSolicitudAmistad(String usernameDestino) {
+        if (usuarioActual == null || usernameDestino == null) return false;
+        String up = usernameDestino.toUpperCase();
+        if (up.equals(usuarioActual.getUsername())) return false;
+        if (usuarioActual.getAmigos().contains(up)) return false;
+
+        Usuario destino = buscarUsuario(up);
+        if (destino == null) return false;
+
+        if (destino.agregarSolicitud(usuarioActual.getUsername())) {
+            String carpeta = BASE_DIR + up + "/";
+            try { guardarPerfil(destino, carpeta); } catch (Exception e) { return false; }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean aceptarSolicitud(String usernameRemitente) {
+        if (usuarioActual == null) return false;
+        String up = usernameRemitente.toUpperCase();
+        if (!usuarioActual.getSolicitudesPendientes().contains(up)) return false;
+
+        usuarioActual.eliminarSolicitud(up);
+        usuarioActual.agregarAmigo(up);
+
+        Usuario remitente = buscarUsuario(up);
+        if (remitente != null) {
+            remitente.agregarAmigo(usuarioActual.getUsername());
+            String carpetaR = BASE_DIR + up + "/";
+            try { guardarPerfil(remitente, carpetaR); } catch (Exception e) {}
+        }
+
+        actualizarUsuario(usuarioActual);
+        return true;
+    }
+
+    public boolean rechazarSolicitud(String usernameRemitente) {
+        if (usuarioActual == null) return false;
+        usuarioActual.eliminarSolicitud(usernameRemitente);
+        actualizarUsuario(usuarioActual);
+        return true;
+    }
+
+    public List<String> obtenerSolicitudesPendientes() {
+        if (usuarioActual == null) return new ArrayList<>();
+        return new ArrayList<>(usuarioActual.getSolicitudesPendientes());
+    }
+
+    public boolean enviarReto(String usernameDestino, int nivel,
+                              long tiempoRemitente, int puntajeRemitente) {
+        if (usuarioActual == null) return false;
+        String up = usernameDestino.toUpperCase();
+        if (!usuarioActual.getAmigos().contains(up)) return false;
+
+        Usuario destino = buscarUsuario(up);
+        if (destino == null) return false;
+
+        List<Reto> retos = cargarRetos(up);
+        retos.add(new Reto(usuarioActual.getUsername(), up, nivel,
+                tiempoRemitente, puntajeRemitente));
+        guardarRetos(up, retos);
+        return true;
+    }
+
+    public boolean aceptarReto(String usernameRemitente, int nivel,
+                               long tiempoDestinatario, int puntajeDestinatario) {
+        if (usuarioActual == null) return false;
+        List<Reto> retos = cargarRetos(usuarioActual.getUsername());
+        for (Reto r : retos) {
+            if (r.getRemitente().equals(usernameRemitente.toUpperCase())
+                    && r.getNivel() == nivel
+                    && r.getEstado() == Reto.EstadoReto.PENDIENTE) {
+                r.completarReto(tiempoDestinatario, puntajeDestinatario);
+                guardarRetos(usuarioActual.getUsername(), retos);
+
+                List<Reto> retosRem = cargarRetos(usernameRemitente.toUpperCase());
+                retosRem.add(r);
+                guardarRetos(usernameRemitente.toUpperCase(), retosRem);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Reto> obtenerRetosPendientes() {
+        if (usuarioActual == null) return new ArrayList<>();
+        List<Reto> todos = cargarRetos(usuarioActual.getUsername());
+        List<Reto> pendientes = new ArrayList<>();
+        for (Reto r : todos) {
+            if (r.getEstado() == Reto.EstadoReto.PENDIENTE) {
+                pendientes.add(r);
+            }
+        }
+        return pendientes;
+    }
+
+    public List<Reto> obtenerRetosCompletados() {
+        if (usuarioActual == null) return new ArrayList<>();
+        List<Reto> todos = cargarRetos(usuarioActual.getUsername());
+        List<Reto> comp = new ArrayList<>();
+        for (Reto r : todos) {
+            if (r.getEstado() == Reto.EstadoReto.COMPLETADO
+                    || r.getEstado() == Reto.EstadoReto.RECHAZADO) {
+                comp.add(r);
+            }
+        }
+        return comp;
+    }
+
+    private List<Reto> cargarRetos(String username) {
+        String ruta = BASE_DIR + username.toUpperCase() + "/retos.bin";
+        if (!gestorArchivos.existeArchivo(ruta)) return new ArrayList<>();
+        try {
+            Object obj = gestorArchivos.cargar(ruta);
+            if (obj instanceof List) return (List<Reto>) obj;
+        } catch (Exception e) {
+            System.err.println("Error cargando retos: " + e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
+    private void guardarRetos(String username, List<Reto> retos) {
+        String ruta = BASE_DIR + username.toUpperCase() + "/retos.bin";
+        try {
+            gestorArchivos.guardar(retos, ruta);
+        } catch (Exception e) {
+            System.err.println("Error guardando retos: " + e.getMessage());
+        }
     }
 
     @Override
@@ -263,5 +411,76 @@ public class GestorUsuarios implements IGestionable {
 
     public boolean hayUsuarioActivo() {
         return usuarioActual != null;
+    }
+
+
+    public boolean agregarAmigo(String usernameAmigo) {
+        if (usuarioActual == null || usernameAmigo == null) {
+            return false;
+        }
+        String upper = usernameAmigo.toUpperCase();
+        if (upper.equals(usuarioActual.getUsername())) {
+            return false;
+        }
+        Usuario amigo = buscarUsuario(upper);
+        if (amigo == null) {
+            return false;
+        }
+        if (usuarioActual.agregarAmigo(upper)) {
+            actualizarUsuario(usuarioActual);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean eliminarAmigo(String usernameAmigo) {
+        if (usuarioActual == null) {
+            return false;
+        }
+        if (usuarioActual.eliminarAmigo(usernameAmigo)) {
+            actualizarUsuario(usuarioActual);
+            return true;
+        }
+        return false;
+    }
+
+    public List<Usuario> obtenerAmigos() {
+        List<Usuario> lista = new ArrayList<>();
+        if (usuarioActual == null) {
+            return lista;
+        }
+        for (String u : usuarioActual.getAmigos()) {
+            Usuario amigo = buscarUsuario(u);
+            if (amigo != null) {
+                lista.add(amigo);
+            }
+        }
+        lista.sort(Comparator.comparingInt(
+                (Usuario u) -> u.getEstadisticas().getPuntajeTotal()).reversed());
+        return lista;
+    }
+
+    public Preferencias cargarPreferencias(String username) {
+        String ruta = BASE_DIR + username.toUpperCase() + "/preferencias.bin";
+        if (!gestorArchivos.existeArchivo(ruta)) {
+            Preferencias p = new Preferencias();
+            guardarPreferencias(username, p);
+            return p;
+        }
+        try {
+            return (Preferencias) gestorArchivos.cargar(ruta);
+        } catch (Exception e) {
+            System.err.println("Error cargando preferencias: " + e.getMessage());
+            return new Preferencias();
+        }
+    }
+
+    public void guardarPreferencias(String username, Preferencias pref) {
+        String ruta = BASE_DIR + username.toUpperCase() + "/preferencias.bin";
+        try {
+            gestorArchivos.guardar(pref, ruta);
+        } catch (Exception e) {
+            System.err.println("Error guardando preferencias: " + e.getMessage());
+        }
     }
 }

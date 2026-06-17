@@ -17,7 +17,8 @@ public enum ColorFlujo {
     CYAN    (new Color(0.10f, 0.85f, 0.90f, 1f), "Cyan"),
     MARRON  (new Color(0.55f, 0.27f, 0.07f, 1f), "Marrón"),
     ROSADO  (new Color(0.95f, 0.45f, 0.75f, 1f), "Rosado"),
-    GRIS    (new Color(0.55f, 0.55f, 0.55f, 1f), "Gris");
+    GRIS    (new Color(0.55f, 0.55f, 0.55f, 1f), "Gris"),
+    ROJO_OSCURO(new Color(0.60f, 0.05f, 0.05f, 1f), "Rojo Oscuro");
 
     private final Color colorGDX;
     private final String nombre;

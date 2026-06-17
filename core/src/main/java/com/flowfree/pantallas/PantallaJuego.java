@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.flowfree.FlowFreeGame;
+import com.flowfree.datos.Traductor;
 import com.flowfree.enums.ColorFlujo;
 import com.flowfree.enums.EstadoJuego;
 import com.flowfree.hilos.HiloTemporizador;
@@ -110,7 +111,9 @@ public class PantallaJuego extends PantallaBase
     public void render(float delta) {
         limpiarPantalla();
 
-        if (!victoria && !gameOver) {
+        if (victoria || gameOver) {
+            manejarOverlayInput();
+        } else {
             manejarInput();
         }
 
@@ -138,7 +141,7 @@ public class PantallaJuego extends PantallaBase
         juego.batch.begin();
 
         fuente.setColor(COLOR_TEXTO_GRIS);
-        fuente.draw(juego.batch, "NIVEL " + numeroNivel + "  " + tam + "x" + tam,
+        fuente.draw(juego.batch, Traductor.nivel(juego.idiomaActual) + " " + numeroNivel + "  " + tam + "x" + tam,
                 PADDING, altoVentana - 14f);
 
         Nivel cfg = motor.getNivelConfig();
@@ -158,7 +161,7 @@ public class PantallaJuego extends PantallaBase
         }
 
         fuente.setColor(COLOR_TEXTO_GRIS);
-        String movTxt = "Mov: " + motor.getMovimientos();
+        String movTxt = Traductor.movimientos(juego.idiomaActual) + ": " + motor.getMovimientos();
         layout.setText(fuente, movTxt);
         fuente.draw(juego.batch, movTxt,
                 anchoVentana - layout.width - PADDING,
@@ -166,16 +169,16 @@ public class PantallaJuego extends PantallaBase
 
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         fuenteSmall.draw(juego.batch,
-                "Relleno: " + motor.getPorcentajeRelleno() + "%",
+                Traductor.relleno(juego.idiomaActual) + ": " + motor.getPorcentajeRelleno() + "%",
                 PADDING, HUD_H - 12f);
 
         fuenteSmall.setColor(COLOR_ACENTO);
         dibujarTextoCentrado(fuenteSmall,
-                "Vidas: " + motor.getVidas(),
+                Traductor.vidas(juego.idiomaActual) + ": " + motor.getVidas(),
                 xCentro, HUD_H - 12f);
 
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-        String hint = "[R] Reiniciar   [ESC] Menú";
+        String hint = "[R] " + Traductor.reiniciar(juego.idiomaActual) + "   [ESC] " + Traductor.menu(juego.idiomaActual);
         layout.setText(fuenteSmall, hint);
         fuenteSmall.draw(juego.batch, hint,
                 anchoVentana - layout.width - PADDING, HUD_H - 12f);
@@ -212,6 +215,20 @@ public class PantallaJuego extends PantallaBase
                 }
 
                 Color col = celda.getColor().getColorGDX();
+                float pw = tamCelda * 0.38f;
+
+                if (c < tam - 1) {
+                    Celda der = motor.getGrid()[f][c + 1];
+                    if (der.getColor() == celda.getColor()) {
+                        juego.shapeRenderer.rect(cx + radio, cy - pw / 2f, tamCelda - 2 * radio, pw);
+                    }
+                }
+                if (f > 0) {
+                    Celda arr = motor.getGrid()[f - 1][c];
+                    if (arr.getColor() == celda.getColor()) {
+                        juego.shapeRenderer.rect(cx - pw / 2f, cy + radio, pw, tamCelda - 2 * radio);
+                    }
+                }
 
                 if (celda.esPuntoFijo()) {
                     juego.shapeRenderer.setColor(celda.getColor().getColorOscuro());
@@ -220,21 +237,7 @@ public class PantallaJuego extends PantallaBase
                     juego.shapeRenderer.circle(cx, cy, radio);
                 } else {
                     juego.shapeRenderer.setColor(col);
-                    float pw = tamCelda * 0.38f;
                     juego.shapeRenderer.rect(cx - pw / 2f, cy - pw / 2f, pw, pw);
-
-                    if (f > 0 && motor.getGrid()[f - 1][c].getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx - pw / 2f, cy, pw, center);
-                    }
-                    if (f < tam - 1 && motor.getGrid()[f + 1][c].getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx - pw / 2f, cy - center, pw, center);
-                    }
-                    if (c > 0 && motor.getGrid()[f][c - 1].getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx - center, cy - pw / 2f, center, pw);
-                    }
-                    if (c < tam - 1 && motor.getGrid()[f][c + 1].getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx, cy - pw / 2f, center, pw);
-                    }
                 }
             }
         }
@@ -263,9 +266,35 @@ public class PantallaJuego extends PantallaBase
 
         fuente.setColor(COLOR_TEXTO_GRIS);
         dibujarTextoCentrado(fuente,
-                "[ENTER] Siguiente   [R] Reiniciar   [ESC] Menú",
+                "[ENTER] " + Traductor.siguiente(juego.idiomaActual) + "   [R] " + Traductor.reiniciar(juego.idiomaActual) + "   [ESC] " + Traductor.menu(juego.idiomaActual),
                 xCentro, altoVentana / 2f - 20f);
         juego.batch.end();
+    }
+
+    private void manejarOverlayInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            detenerHilos();
+            juego.setScreen(new PantallaMenu(juego));
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            motor.reiniciar();
+            if (hiloTimer != null) {
+                hiloTimer.reiniciar();
+            }
+            victoria = false;
+            gameOver = false;
+            mensajeOverlay = "";
+            return;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            detenerHilos();
+            if (victoria && numeroNivel < 5) {
+                juego.setScreen(new PantallaJuego(juego, numeroNivel + 1));
+            } else {
+                juego.setScreen(new PantallaMapa(juego));
+            }
+        }
     }
 
     private void manejarInput() {
@@ -279,21 +308,11 @@ public class PantallaJuego extends PantallaBase
             if (hiloTimer != null) {
                 hiloTimer.reiniciar();
             }
+            victoria = false;
+            gameOver = false;
+            mensajeOverlay = "";
             return;
         }
-
-        if (victoria || gameOver) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-                detenerHilos();
-                if (victoria && numeroNivel < 5) {
-                    juego.setScreen(new PantallaJuego(juego, numeroNivel + 1));
-                } else {
-                    juego.setScreen(new PantallaMapa(juego));
-                }
-            }
-            return;
-        }
-
         manejarTouch();
     }
 
@@ -347,25 +366,34 @@ public class PantallaJuego extends PantallaBase
     @Override
     public void onVictoria(int puntaje, long tiempo, int movs) {
         victoria = true;
-        mensajeOverlay = "¡NIVEL COMPLETADO!  +" + puntaje + " pts";
+        mensajeOverlay = "¡" + Traductor.nivelCompletado(juego.idiomaActual) + "!  +" + puntaje + " pts";
         detenerHilos();
 
         HistorialPartida h = new HistorialPartida(
                 numeroNivel, puntaje, tiempo, movs, true, "VICTORIA");
         juego.gestorUsuarios.registrarPartida(
                 juego.gestorUsuarios.getUsuarioActual().getUsername(), h);
+
+        if (juego.retoDestinatario != null && juego.retoNivel == numeroNivel) {
+            juego.gestorUsuarios.enviarReto(juego.retoDestinatario, numeroNivel, tiempo, puntaje);
+            mensajeOverlay += "  [" + Traductor.retoEnviadoA(juego.idiomaActual) + " " + juego.retoDestinatario + "]";
+            juego.retoDestinatario = null;
+            juego.retoNivel = -1;
+        }
     }
 
     @Override
     public void onTiempoAgotado() {
         gameOver = true;
-        mensajeOverlay = "¡TIEMPO AGOTADO!";
+        mensajeOverlay = "¡" + Traductor.tiempoAgotado(juego.idiomaActual) + "!";
         motor.notificarTiempoAgotado();
         HistorialPartida h = new HistorialPartida(
                 numeroNivel, 0, motor.getNivelConfig().getTiempoLimite(),
                 motor.getMovimientos(), false, "TIEMPO_AGOTADO");
         juego.gestorUsuarios.registrarPartida(
                 juego.gestorUsuarios.getUsuarioActual().getUsername(), h);
+        juego.retoDestinatario = null;
+        juego.retoNivel = -1;
     }
 
     @Override
