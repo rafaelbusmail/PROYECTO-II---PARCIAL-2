@@ -300,10 +300,9 @@ public class PantallaJuego extends PantallaBase
             return;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            detenerHilos();
             motor.reiniciar();
-            if (hiloTimer != null) {
-                hiloTimer.reiniciar();
-            }
+            iniciarHilos();
             victoria = false;
             gameOver = false;
             mensajeOverlay = "";
@@ -327,10 +326,9 @@ public class PantallaJuego extends PantallaBase
             return;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            detenerHilos();
             motor.reiniciar();
-            if (hiloTimer != null) {
-                hiloTimer.reiniciar();
-            }
+            iniciarHilos();
             victoria = false;
             gameOver = false;
             mensajeOverlay = "";

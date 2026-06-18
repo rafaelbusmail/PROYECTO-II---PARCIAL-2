@@ -343,7 +343,7 @@ public class PantallaAmigos extends PantallaBase {
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         float colUser = xCont + 30f;
         float colNivel = xCont + panelW - 300f;
-        float colPts = xCont + panelW - 210f;
+        float colPts = xCont + panelW - 260f;
         float colC = xCont + panelW - 60f;
         float colR = xCont + panelW - 95f;
         float colX = xCont + panelW - 130f;
@@ -477,7 +477,7 @@ public class PantallaAmigos extends PantallaBase {
         if (yo == null) return;
 
         float panelW = Math.min(620f, W - 40f);
-        float panelH = 400f;
+        float panelH = 440f;
         float panelX = cx - panelW / 2f;
         float panelY = H / 2f - panelH / 2f;
         float colW = panelW / 2f - 30f;

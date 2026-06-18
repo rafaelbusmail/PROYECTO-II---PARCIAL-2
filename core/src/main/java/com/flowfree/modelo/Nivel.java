@@ -10,6 +10,8 @@ public class Nivel {
 
     private final int numero;
     private final int tamano;          
+    public static final int TOTAL_NIVELES = 5;
+
     private final int tiempoLimite;    
     private final ColorFlujo[] colores;
     private final int[][] puntosColor;

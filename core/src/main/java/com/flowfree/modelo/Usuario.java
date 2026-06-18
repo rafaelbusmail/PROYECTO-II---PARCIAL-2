@@ -85,7 +85,11 @@ public class Usuario implements Serializable {
     }
 
     public int getNivelMaxDesbloqueado() {
-        return nivelMaxDesbloqueado;
+        return Math.min(nivelMaxDesbloqueado, com.flowfree.modelo.Nivel.TOTAL_NIVELES);
+    }
+
+    public boolean isAllLevelsCompleted() {
+        return nivelMaxDesbloqueado > com.flowfree.modelo.Nivel.TOTAL_NIVELES;
     }
 
     public long getTiempoTotalJugadoSegundos() {

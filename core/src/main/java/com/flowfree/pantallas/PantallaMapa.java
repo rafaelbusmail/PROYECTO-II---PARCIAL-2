@@ -135,8 +135,12 @@ public class PantallaMapa extends PantallaBase {
 
         if (usuario != null) {
             fuente.setColor(COLOR_TEXTO_GRIS);
-            tc(fuente, usuario.getNombreCompleto() + " - Nivel " + nivelMax + " desbloqueado",
-                    cx, H - 95f);
+            if (usuario.isAllLevelsCompleted()) {
+                tc(fuente, usuario.getNombreCompleto() + " - Completado", cx, H - 95f);
+            } else {
+                tc(fuente, usuario.getNombreCompleto() + " - Nivel " + nivelMax + " desbloqueado",
+                        cx, H - 95f);
+            }
         }
 
         for (int i = 0; i < TOTAL; i++) {
