@@ -21,7 +21,10 @@ public class FlowFreeGame extends Game {
     private Music musicaFondo;
 
     public String retoDestinatario = null;
+    public String retoRemitente = null;
     public int retoNivel = -1;
+    public long retoTiempoRemitente = 0;
+    public int retoPuntajeRemitente = 0;
 
     public Idioma idiomaActual = Idioma.ES;
 
@@ -30,6 +33,8 @@ public class FlowFreeGame extends Game {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         gestorUsuarios = new GestorUsuarios();
+
+        idiomaActual = gestorUsuarios.cargarIdiomaGlobal();
 
         hiloAutoguardado = new HiloAutoguardado(gestorUsuarios);
         hiloAutoguardado.start();
@@ -76,6 +81,7 @@ public class FlowFreeGame extends Game {
             this.idiomaActual = pref.getIdioma();
             this.ajustarVolumenMusica(pref.getVolumenMusica());
         }
+        gestorUsuarios.guardarIdiomaGlobal(this.idiomaActual);
     }
 
     @Override

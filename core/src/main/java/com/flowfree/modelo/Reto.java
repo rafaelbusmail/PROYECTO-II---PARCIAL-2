@@ -44,6 +44,10 @@ public class Reto implements Serializable {
 
     public void setEstado(EstadoReto estado) { this.estado = estado; }
 
+    public void rechazarReto() {
+        this.estado = EstadoReto.RECHAZADO;
+    }
+
     public void completarReto(long tiempoDestinatario, int puntajeDestinatario) {
         this.tiempoDestinatario = tiempoDestinatario;
         this.puntajeDestinatario = puntajeDestinatario;

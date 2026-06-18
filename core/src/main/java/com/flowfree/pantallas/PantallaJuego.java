@@ -11,15 +11,13 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.flowfree.FlowFreeGame;
-import com.flowfree.datos.Traductor;
-import com.flowfree.enums.ColorFlujo;
-import com.flowfree.enums.EstadoJuego;
-import com.flowfree.hilos.HiloTemporizador;
 import com.flowfree.hilos.HiloEstadisticas;
+import com.flowfree.hilos.HiloTemporizador;
 import com.flowfree.logica.FlowFreeJuego;
 import com.flowfree.modelo.Celda;
 import com.flowfree.modelo.HistorialPartida;
 import com.flowfree.modelo.Nivel;
+import com.flowfree.datos.Traductor;
 
 public class PantallaJuego extends PantallaBase
         implements FlowFreeJuego.JuegoListener,
@@ -27,27 +25,17 @@ public class PantallaJuego extends PantallaBase
 
     private FlowFreeJuego motor;
     private final int numeroNivel;
-
     private HiloTemporizador hiloTimer;
     private HiloEstadisticas hiloStats;
-
-    private BitmapFont fuente;
-    private BitmapFont fuenteGrande;
-    private BitmapFont fuenteSmall;
+    private BitmapFont fuente, fuenteGrande, fuenteSmall;
     private GlyphLayout layout;
 
-    private float anchoVentana, altoVentana, xCentro;
-    private float tamCelda;
-    private float tableroX, tableroY;
-
-    private int filaArrastre = -1;
-    private int colArrastre = -1;
+    private int filaArrastre = -1, colArrastre = -1;
     private boolean arrastrando = false;
-
     private volatile int segundosRestantes = 0;
     private volatile long tiempoJugado = 0;
-    private boolean victoria = false;
-    private boolean gameOver = false;
+    private boolean victoria = false, gameOver = false;
+    private boolean esPartidaReto = false;
     private String mensajeOverlay = "";
 
     private static final Color COLOR_HUD_BG = new Color(0.10f, 0.10f, 0.15f, 1f);
@@ -65,180 +53,216 @@ public class PantallaJuego extends PantallaBase
         fuenteGrande = crearFuente(28);
         fuenteSmall = crearFuente(13);
         layout = new GlyphLayout();
-
         motor = new FlowFreeJuego();
         motor.setListener(this);
         motor.cargarNivel(numeroNivel);
         motor.iniciar();
-
-        recalcularLayout();
         iniciarHilos();
+        esPartidaReto = (juego.retoDestinatario != null || juego.retoRemitente != null);
     }
 
     @Override
     public void resize(int w, int h) {
-        recalcularLayout();
     }
 
-    private void recalcularLayout() {
-        anchoVentana = Gdx.graphics.getWidth();
-        altoVentana = Gdx.graphics.getHeight();
-        xCentro = anchoVentana / 2f;
+    @Override
+    public void pause() {
+    }
 
-        int tam = motor.getNivelConfig().getTamano();
-        float espacio = Math.min(anchoVentana, altoVentana - HUD_H * 2) - PADDING * 2;
-        tamCelda = espacio / tam;
-        tableroX = xCentro - (tam * tamCelda) / 2f;
-        tableroY = HUD_H + PADDING;
+    @Override
+    public void resume() {
+    }
+
+    @Override
+    public void hide() {
     }
 
     private void iniciarHilos() {
         Nivel cfg = motor.getNivelConfig();
-
         if (cfg.getTiempoLimite() > 0) {
             segundosRestantes = cfg.getTiempoLimite();
             hiloTimer = new HiloTemporizador(cfg.getTiempoLimite(), this);
             hiloTimer.start();
         }
-
-        hiloStats = new HiloEstadisticas(juego.gestorUsuarios,
-                seg -> tiempoJugado = seg);
+        hiloStats = new HiloEstadisticas(juego.gestorUsuarios, seg -> tiempoJugado = seg);
         hiloStats.start();
         hiloStats.iniciarConteo();
     }
 
     @Override
     public void render(float delta) {
+        float W = Gdx.graphics.getWidth();
+        float H = Gdx.graphics.getHeight();
+        float cx = W / 2f;
+
+        int tam = motor.getNivelConfig().getTamano();
+        float espacio = Math.min(W, H - HUD_H * 2) - PADDING * 2;
+        float tamCelda = espacio / tam;
+        float tableroX = cx - (tam * tamCelda) / 2f;
+        float tableroY = HUD_H + PADDING;
+
         limpiarPantalla();
 
         if (victoria || gameOver) {
-            manejarOverlayInput();
+            manejarOverlayInput(tableroX, tableroY, tamCelda, tam);
         } else {
-            manejarInput();
+            manejarInput(W, H, tableroX, tableroY, tamCelda, tam);
         }
 
-        dibujarHUD();
-        dibujarTablero();
+        dibujarHUD(W, H, cx, tam);
+        dibujarTablero(W, H, tableroX, tableroY, tamCelda, tam);
 
         if (victoria || gameOver) {
-            dibujarOverlay();
+            dibujarOverlay(W, H, cx);
         }
     }
 
-    private void dibujarHUD() {
-        int tam = motor.getNivelConfig().getTamano();
-
+    private void dibujarHUD(float W, float H, float cx, int tam) {
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
         juego.shapeRenderer.setColor(COLOR_HUD_BG);
-        juego.shapeRenderer.rect(0, altoVentana - HUD_H, anchoVentana, HUD_H);
-
-        juego.shapeRenderer.setColor(COLOR_HUD_BG);
-        juego.shapeRenderer.rect(0, 0, anchoVentana, HUD_H);
-
+        juego.shapeRenderer.rect(0, H - HUD_H, W, HUD_H);
+        juego.shapeRenderer.rect(0, 0, W, HUD_H);
         juego.shapeRenderer.end();
 
         juego.batch.begin();
-
         fuente.setColor(COLOR_TEXTO_GRIS);
-        fuente.draw(juego.batch, Traductor.nivel(juego.idiomaActual) + " " + numeroNivel + "  " + tam + "x" + tam,
-                PADDING, altoVentana - 14f);
+        fuente.draw(juego.batch,
+                Traductor.nivel(juego.idiomaActual) + " " + numeroNivel + "  " + tam + "x" + tam,
+                PADDING, H - 14f);
 
         Nivel cfg = motor.getNivelConfig();
         if (cfg.getTiempoLimite() > 0) {
-            int min = segundosRestantes / 60;
-            int seg = segundosRestantes % 60;
-            String timerTxt = String.format("%02d:%02d", min, seg);
-            Color cTimer = segundosRestantes <= 10 ? COLOR_ERROR : COLOR_TEXTO;
-            fuenteGrande.setColor(cTimer);
-            dibujarTextoCentrado(fuenteGrande, timerTxt,
-                    xCentro, altoVentana - 12f);
+            int min = segundosRestantes / 60, seg = segundosRestantes % 60;
+            fuenteGrande.setColor(segundosRestantes <= 10 ? COLOR_ERROR : COLOR_TEXTO);
+            tc(fuenteGrande, String.format("%02d:%02d", min, seg), cx, H - 12f);
         } else {
             fuenteGrande.setColor(COLOR_TEXTO_GRIS);
-            dibujarTextoCentrado(fuenteGrande, String.format("%02d:%02d",
-                    tiempoJugado / 60, tiempoJugado % 60),
-                    xCentro, altoVentana - 12f);
+            tc(fuenteGrande, String.format("%02d:%02d", tiempoJugado / 60, tiempoJugado % 60), cx, H - 12f);
         }
 
         fuente.setColor(COLOR_TEXTO_GRIS);
         String movTxt = Traductor.movimientos(juego.idiomaActual) + ": " + motor.getMovimientos();
         layout.setText(fuente, movTxt);
-        fuente.draw(juego.batch, movTxt,
-                anchoVentana - layout.width - PADDING,
-                altoVentana - 14f);
+        fuente.draw(juego.batch, movTxt, W - layout.width - PADDING, H - 14f);
 
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         fuenteSmall.draw(juego.batch,
                 Traductor.relleno(juego.idiomaActual) + ": " + motor.getPorcentajeRelleno() + "%",
                 PADDING, HUD_H - 12f);
-
         fuenteSmall.setColor(COLOR_ACENTO);
-        dibujarTextoCentrado(fuenteSmall,
-                Traductor.vidas(juego.idiomaActual) + ": " + motor.getVidas(),
-                xCentro, HUD_H - 12f);
-
+        tc(fuenteSmall, Traductor.vidas(juego.idiomaActual) + ": " + motor.getVidas(), cx, HUD_H - 12f);
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
-        String hint = "[R] " + Traductor.reiniciar(juego.idiomaActual) + "   [ESC] " + Traductor.menu(juego.idiomaActual);
+        String hint = "[R] " + Traductor.reiniciar(juego.idiomaActual)
+                + " [ESC] " + Traductor.menu(juego.idiomaActual);
         layout.setText(fuenteSmall, hint);
-        fuenteSmall.draw(juego.batch, hint,
-                anchoVentana - layout.width - PADDING, HUD_H - 12f);
-
+        fuenteSmall.draw(juego.batch, hint, W - layout.width - PADDING, HUD_H - 12f);
         juego.batch.end();
     }
 
-    private void dibujarTablero() {
+    private void dibujarTablero(float W, float H,
+            float tableroX, float tableroY,
+            float tamCelda, int tam) {
         if (motor.getGrid() == null) {
             return;
         }
 
-        int tam = motor.getNivelConfig().getTamano();
-        float radio = tamCelda * 0.38f;
-        float center = tamCelda / 2f;
+        float centro = tamCelda / 2f;
+        float radioFijo = tamCelda * 0.40f;   
+        float radioFlujo = tamCelda * 0.22f;  
+        float anchoFranja = tamCelda * 0.36f; 
+
+        Celda[][] grid = motor.getGrid();
 
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         for (int f = 0; f < tam; f++) {
             for (int c = 0; c < tam; c++) {
-                float cx = tableroX + c * tamCelda + center;
-                float cy = tableroY + (tam - 1 - f) * tamCelda + center;
-                Celda celda = motor.getGrid()[f][c];
-
-                juego.shapeRenderer.setColor(
-                        new Color(0.14f, 0.14f, 0.20f, 1f));
+                juego.shapeRenderer.setColor(new Color(0.14f, 0.14f, 0.20f, 1f));
                 juego.shapeRenderer.rect(
                         tableroX + c * tamCelda + 1,
                         tableroY + (tam - 1 - f) * tamCelda + 1,
                         tamCelda - 2, tamCelda - 2);
+            }
+        }
 
+        for (int f = 0; f < tam; f++) {
+            for (int c = 0; c < tam; c++) {
+                Celda celda = grid[f][c];
                 if (celda.getColor() == null) {
                     continue;
                 }
 
                 Color col = celda.getColor().getColorGDX();
-                float pw = tamCelda * 0.38f;
+                juego.shapeRenderer.setColor(col);
 
-                if (c < tam - 1) {
-                    Celda der = motor.getGrid()[f][c + 1];
-                    if (der.getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx + radio, cy - pw / 2f, tamCelda - 2 * radio, pw);
+                float cx2 = tableroX + c * tamCelda + centro;
+                float cy2 = tableroY + (tam - 1 - f) * tamCelda + centro;
+
+                boolean rutaActivaColor = (motor.getColorActivo() == celda.getColor() && !motor.rutaActivaVacia());
+
+                if (c < tam - 1 && grid[f][c + 1].getColor() == celda.getColor()) {
+                    boolean skip = false;
+                    if (rutaActivaColor) {
+                        Celda v = grid[f][c + 1];
+                        if ((celda.esPuntoFijo() && !motor.esCeldaEnRutaActiva(f, c)) ||
+                            (v.esPuntoFijo() && !motor.esCeldaEnRutaActiva(f, c + 1))) {
+                            skip = true;
+                        }
+                    }
+                    if (!skip) {
+                        float cx2r = tableroX + (c + 1) * tamCelda + centro;
+                        juego.shapeRenderer.rect(cx2, cy2 - anchoFranja / 2f, cx2r - cx2, anchoFranja);
                     }
                 }
-                if (f > 0) {
-                    Celda arr = motor.getGrid()[f - 1][c];
-                    if (arr.getColor() == celda.getColor()) {
-                        juego.shapeRenderer.rect(cx - pw / 2f, cy + radio, pw, tamCelda - 2 * radio);
+
+                if (f < tam - 1 && grid[f + 1][c].getColor() == celda.getColor()) {
+                    boolean skip = false;
+                    if (rutaActivaColor) {
+                        Celda v = grid[f + 1][c];
+                        if ((celda.esPuntoFijo() && !motor.esCeldaEnRutaActiva(f, c)) ||
+                            (v.esPuntoFijo() && !motor.esCeldaEnRutaActiva(f + 1, c))) {
+                            skip = true;
+                        }
+                    }
+                    if (!skip) {
+                        float cy2d = tableroY + (tam - 1 - (f + 1)) * tamCelda + centro;
+                        juego.shapeRenderer.rect(cx2 - anchoFranja / 2f, cy2d, anchoFranja, cy2 - cy2d);
                     }
                 }
+            }
+        }
 
-                if (celda.esPuntoFijo()) {
-                    juego.shapeRenderer.setColor(celda.getColor().getColorOscuro());
-                    juego.shapeRenderer.circle(cx, cy, radio + 4f);
-                    juego.shapeRenderer.setColor(col);
-                    juego.shapeRenderer.circle(cx, cy, radio);
-                } else {
-                    juego.shapeRenderer.setColor(col);
-                    juego.shapeRenderer.rect(cx - pw / 2f, cy - pw / 2f, pw, pw);
+        for (int f = 0; f < tam; f++) {
+            for (int c = 0; c < tam; c++) {
+                Celda celda = grid[f][c];
+                if (!celda.esPuntoFijo() || celda.getColor() == null) {
+                    continue;
                 }
+
+                Color col = celda.getColor().getColorGDX();
+                float cx2 = tableroX + c * tamCelda + centro;
+                float cy2 = tableroY + (tam - 1 - f) * tamCelda + centro;
+
+                juego.shapeRenderer.setColor(celda.getColor().getColorOscuro());
+                juego.shapeRenderer.circle(cx2, cy2, radioFijo + 3f);
+                juego.shapeRenderer.setColor(col);
+                juego.shapeRenderer.circle(cx2, cy2, radioFijo);
+            }
+        }
+
+        for (int f = 0; f < tam; f++) {
+            for (int c = 0; c < tam; c++) {
+                Celda celda = grid[f][c];
+                if (celda.esPuntoFijo() || celda.getColor() == null) {
+                    continue;
+                }
+
+                Color col = celda.getColor().getColorGDX();
+                float cx2 = tableroX + c * tamCelda + centro;
+                float cy2 = tableroY + (tam - 1 - f) * tamCelda + centro;
+
+                juego.shapeRenderer.setColor(col);
+                juego.shapeRenderer.circle(cx2, cy2, radioFlujo);
             }
         }
 
@@ -253,25 +277,23 @@ public class PantallaJuego extends PantallaBase
         juego.shapeRenderer.end();
     }
 
-    private void dibujarOverlay() {
+    private void dibujarOverlay(float W, float H, float cx) {
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         juego.shapeRenderer.setColor(0f, 0f, 0f, 0.65f);
-        juego.shapeRenderer.rect(0, 0, anchoVentana, altoVentana);
+        juego.shapeRenderer.rect(0, 0, W, H);
         juego.shapeRenderer.end();
-
         juego.batch.begin();
         fuenteGrande.setColor(victoria ? COLOR_EXITO : COLOR_ERROR);
-        dibujarTextoCentrado(fuenteGrande, mensajeOverlay,
-                xCentro, altoVentana / 2f + 60f);
-
+        tc(fuenteGrande, mensajeOverlay, cx, H / 2f + 60f);
         fuente.setColor(COLOR_TEXTO_GRIS);
-        dibujarTextoCentrado(fuente,
-                "[ENTER] " + Traductor.siguiente(juego.idiomaActual) + "   [R] " + Traductor.reiniciar(juego.idiomaActual) + "   [ESC] " + Traductor.menu(juego.idiomaActual),
-                xCentro, altoVentana / 2f - 20f);
+        tc(fuente, "[ENTER] " + Traductor.siguiente(juego.idiomaActual)
+                + "   [R] " + Traductor.reiniciar(juego.idiomaActual)
+                + "   [ESC] " + Traductor.menu(juego.idiomaActual),
+                cx, H / 2f - 20f);
         juego.batch.end();
     }
 
-    private void manejarOverlayInput() {
+    private void manejarOverlayInput(float tableroX, float tableroY, float tamCelda, int tam) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             detenerHilos();
             juego.setScreen(new PantallaMenu(juego));
@@ -289,7 +311,7 @@ public class PantallaJuego extends PantallaBase
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             detenerHilos();
-            if (victoria && numeroNivel < 5) {
+            if (victoria && numeroNivel < 5 && !esPartidaReto) {
                 juego.setScreen(new PantallaJuego(juego, numeroNivel + 1));
             } else {
                 juego.setScreen(new PantallaMapa(juego));
@@ -297,7 +319,8 @@ public class PantallaJuego extends PantallaBase
         }
     }
 
-    private void manejarInput() {
+    private void manejarInput(float W, float H, float tableroX, float tableroY,
+            float tamCelda, int tam) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             detenerHilos();
             juego.setScreen(new PantallaMenu(juego));
@@ -313,16 +336,14 @@ public class PantallaJuego extends PantallaBase
             mensajeOverlay = "";
             return;
         }
-        manejarTouch();
+        manejarTouch(H, tableroX, tableroY, tamCelda, tam);
     }
 
-    private void manejarTouch() {
-        int tam = motor.getNivelConfig().getTamano();
-
+    private void manejarTouch(float H, float tableroX, float tableroY,
+            float tamCelda, int tam) {
         if (Gdx.input.justTouched()) {
-            float mx = Gdx.input.getX();
-            float my = altoVentana - Gdx.input.getY();
-            int[] cel = coordsACelda(mx, my, tam);
+            float mx = Gdx.input.getX(), my = H - Gdx.input.getY();
+            int[] cel = coordsACelda(mx, my, tableroX, tableroY, tamCelda, tam);
             if (cel != null) {
                 filaArrastre = cel[0];
                 colArrastre = cel[1];
@@ -330,11 +351,9 @@ public class PantallaJuego extends PantallaBase
                 arrastrando = true;
             }
         }
-
         if (arrastrando && Gdx.input.isTouched()) {
-            float mx = Gdx.input.getX();
-            float my = altoVentana - Gdx.input.getY();
-            int[] cel = coordsACelda(mx, my, tam);
+            float mx = Gdx.input.getX(), my = H - Gdx.input.getY();
+            int[] cel = coordsACelda(mx, my, tableroX, tableroY, tamCelda, tam);
             if (cel != null && (cel[0] != filaArrastre || cel[1] != colArrastre)) {
                 if (motor.continuarRuta(cel[0], cel[1])) {
                     filaArrastre = cel[0];
@@ -342,7 +361,6 @@ public class PantallaJuego extends PantallaBase
                 }
             }
         }
-
         if (arrastrando && !Gdx.input.isTouched()) {
             motor.terminarRuta();
             arrastrando = false;
@@ -351,7 +369,8 @@ public class PantallaJuego extends PantallaBase
         }
     }
 
-    private int[] coordsACelda(float mx, float my, int tam) {
+    private int[] coordsACelda(float mx, float my, float tableroX, float tableroY,
+            float tamCelda, int tam) {
         if (mx < tableroX || my < tableroY) {
             return null;
         }
@@ -366,33 +385,65 @@ public class PantallaJuego extends PantallaBase
     @Override
     public void onVictoria(int puntaje, long tiempo, int movs) {
         victoria = true;
-        mensajeOverlay = "¡" + Traductor.nivelCompletado(juego.idiomaActual) + "!  +" + puntaje + " pts";
         detenerHilos();
 
-        HistorialPartida h = new HistorialPartida(
-                numeroNivel, puntaje, tiempo, movs, true, "VICTORIA");
-        juego.gestorUsuarios.registrarPartida(
-                juego.gestorUsuarios.getUsuarioActual().getUsername(), h);
+        int puntosFinales = puntaje;
+        String resultado = "VICTORIA";
+        String extraMsg = "";
 
         if (juego.retoDestinatario != null && juego.retoNivel == numeroNivel) {
+            puntosFinales = (int)(puntaje * 0.15f);
             juego.gestorUsuarios.enviarReto(juego.retoDestinatario, numeroNivel, tiempo, puntaje);
-            mensajeOverlay += "  [" + Traductor.retoEnviadoA(juego.idiomaActual) + " " + juego.retoDestinatario + "]";
+            extraMsg = "  [" + Traductor.retoEnviadoA(juego.idiomaActual) + " " + juego.retoDestinatario + "]";
             juego.retoDestinatario = null;
             juego.retoNivel = -1;
         }
+
+        if (juego.retoRemitente != null && juego.retoNivel == numeroNivel) {
+            boolean gano = tiempo < juego.retoTiempoRemitente;
+            boolean empate = tiempo == juego.retoTiempoRemitente;
+            if (gano) {
+                puntosFinales = (int)(puntaje * 0.15f);
+            } else {
+                puntosFinales = 0;
+                if (!empate) resultado = "RETO_PERDIDO";
+            }
+            juego.gestorUsuarios.aceptarReto(juego.retoRemitente, numeroNivel, tiempo, puntaje);
+            String ganadorNombre;
+            if (gano) {
+                ganadorNombre = juego.gestorUsuarios.getUsuarioActual().getUsername();
+            } else if (empate) {
+                ganadorNombre = Traductor.empate(juego.idiomaActual);
+            } else {
+                ganadorNombre = juego.retoRemitente;
+            }
+            extraMsg = "  [" + Traductor.retoCompletado(juego.idiomaActual)
+                    + " - " + Traductor.ganador(juego.idiomaActual) + ": " + ganadorNombre + "]";
+            juego.retoRemitente = null;
+            juego.retoNivel = -1;
+            juego.retoTiempoRemitente = 0;
+            juego.retoPuntajeRemitente = 0;
+        }
+
+        String ptsText = puntosFinales > 0 ? "  +" + puntosFinales + " pts" : "";
+        mensajeOverlay = "!" + Traductor.nivelCompletado(juego.idiomaActual) + "!" + ptsText + extraMsg;
+
+        HistorialPartida h = new HistorialPartida(numeroNivel, puntosFinales, tiempo, movs, true, resultado);
+        juego.gestorUsuarios.registrarPartida(
+                juego.gestorUsuarios.getUsuarioActual().getUsername(), h);
     }
 
     @Override
     public void onTiempoAgotado() {
         gameOver = true;
-        mensajeOverlay = "¡" + Traductor.tiempoAgotado(juego.idiomaActual) + "!";
+        mensajeOverlay = "!" + Traductor.tiempoAgotado(juego.idiomaActual) + "!";
         motor.notificarTiempoAgotado();
-        HistorialPartida h = new HistorialPartida(
-                numeroNivel, 0, motor.getNivelConfig().getTiempoLimite(),
-                motor.getMovimientos(), false, "TIEMPO_AGOTADO");
+        HistorialPartida h = new HistorialPartida(numeroNivel, 0,
+                motor.getNivelConfig().getTiempoLimite(), motor.getMovimientos(), false, "TIEMPO_AGOTADO");
         juego.gestorUsuarios.registrarPartida(
                 juego.gestorUsuarios.getUsuarioActual().getUsername(), h);
         juego.retoDestinatario = null;
+        juego.retoRemitente = null;
         juego.retoNivel = -1;
     }
 
@@ -412,10 +463,9 @@ public class PantallaJuego extends PantallaBase
         }
     }
 
-    private void dibujarTextoCentrado(BitmapFont font, String txt,
-            float cx, float y) {
-        layout.setText(font, txt);
-        font.draw(juego.batch, txt, cx - layout.width / 2f, y);
+    private void tc(BitmapFont f, String t, float cx, float y) {
+        layout.setText(f, t);
+        f.draw(juego.batch, t, cx - layout.width / 2f, y);
     }
 
     @Override

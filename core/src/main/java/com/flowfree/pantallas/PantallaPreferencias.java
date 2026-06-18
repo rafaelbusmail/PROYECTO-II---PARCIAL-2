@@ -64,12 +64,11 @@ public class PantallaPreferencias extends PantallaBase {
         manejarInput(W, H);
 
         float panelW = Math.min(520f, W - 40f);
-        float panelH = 320f;
+        float panelH = 460f;
         float panelX = cx - panelW / 2f;
         float panelY = H / 2f - panelH / 2f - 10f;
         float xCont = panelX + 40f;
         float anchoC = panelW - 80f;
-        float y = panelY + panelH - 80f;
 
         juego.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
@@ -83,23 +82,20 @@ public class PantallaPreferencias extends PantallaBase {
         juego.shapeRenderer.setColor(COLOR_BOTON);
         juego.shapeRenderer.rect(panelX + 20f, panelY + 14f, 240f, 40f);
 
-        float yRow = y;
-
-        yRow -= 24f;
-        zonas.slider1Y = yRow;
+        float sliderY = panelY + 200f;
+        zonas.slider1Y = sliderY;
         zonas.sliderX = xCont + 10f;
         zonas.sliderW = anchoC - 20f;
-        dibujarSliderShape(zonas.sliderX, yRow, zonas.sliderW, volMusica);
-        yRow -= 70f;
+        dibujarSliderShape(zonas.sliderX, sliderY, zonas.sliderW, volMusica);
 
-        yRow -= 28f;
-        zonas.langY = yRow - 4f;
-        zonas.langH = 32f;
+        float langY = panelY + 80f;
+        zonas.langY = langY;
+        zonas.langH = 36f;
         for (int i = 0; i < IDIOMAS.length; i++) {
             float ix = xCont + i * (anchoC / 2f + 10f);
             float iw = anchoC / 2f;
             juego.shapeRenderer.setColor(i == idxIdioma ? COLOR_ACENTO : COLOR_BOTON);
-            juego.shapeRenderer.rect(ix, zonas.langY, iw, zonas.langH);
+            juego.shapeRenderer.rect(ix, langY, iw, zonas.langH);
         }
 
         juego.shapeRenderer.end();
@@ -109,21 +105,17 @@ public class PantallaPreferencias extends PantallaBase {
         fuenteGrande.setColor(COLOR_TEXTO);
         tc(fuenteGrande, Traductor.preferenciasTitulo(juego.idiomaActual), cx, H - 42f);
 
-        yRow = y;
-
         fuente.setColor(COLOR_TEXTO);
-        tc(fuente, Traductor.volumenMusica(juego.idiomaActual), xCont + anchoC / 2f, yRow);
-        yRow -= 26f;
-        tc(fuenteSmall, (int)(volMusica * 100) + "%", xCont + anchoC / 2f, yRow + 6f);
-        yRow -= 60f;
+        tc(fuente, Traductor.volumenMusica(juego.idiomaActual), xCont + anchoC / 2f, panelY + 310f);
+        tc(fuenteSmall, (int)(volMusica * 100) + "%", xCont + anchoC / 2f, panelY + 280f);
 
-        tc(fuente, Traductor.idioma(juego.idiomaActual), xCont + anchoC / 2f, yRow);
-        yRow -= 28f;
+        tc(fuente, Traductor.idioma(juego.idiomaActual), xCont + anchoC / 2f, panelY + 170f);
+
         for (int i = 0; i < IDIOMAS.length; i++) {
             float ix = xCont + i * (anchoC / 2f + 10f);
             float iw = anchoC / 2f;
             fuenteSmall.setColor(i == idxIdioma ? new Color(0.05f, 0.05f, 0.10f, 1f) : COLOR_TEXTO_GRIS);
-            tc(fuenteSmall, IDIOMAS[i], ix + iw / 2f, yRow + 22f);
+            tc(fuenteSmall, IDIOMAS[i], ix + iw / 2f, langY + 24f);
         }
 
         fuente.setColor(COLOR_TEXTO);
@@ -136,6 +128,8 @@ public class PantallaPreferencias extends PantallaBase {
 
         juego.batch.end();
     }
+
+    private static float panelH = 460f;
 
     private void dibujarSliderShape(float x, float y, float ancho, float valor) {
         float alto = 12f;
@@ -184,14 +178,14 @@ public class PantallaPreferencias extends PantallaBase {
         }
     }
 
-    private static float panelH = 320f; 
-
     private void guardarSalir() {
         pref.setVolumenMusica(volMusica);
         pref.setIdioma(idxIdioma == 0 ? Idioma.ES : Idioma.EN);
+        juego.idiomaActual = pref.getIdioma();
+        juego.ajustarVolumenMusica(volMusica);
         String user = juego.gestorUsuarios.getUsuarioActual().getUsername();
         juego.gestorUsuarios.guardarPreferencias(user, pref);
-        juego.actualizarIdioma();
+        juego.gestorUsuarios.guardarIdiomaGlobal(juego.idiomaActual);
         juego.setScreen(new PantallaPerfil(juego));
     }
 

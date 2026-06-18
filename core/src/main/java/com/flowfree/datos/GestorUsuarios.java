@@ -17,8 +17,13 @@ import java.util.List;
 public class GestorUsuarios implements IGestionable {
 
     private static final String BASE_DIR = "assets/datos/usuarios/";
+    private static final String DATOS_SUBDIR = "datos del usuario";
     private Usuario usuarioActual;
     private final GestorArchivos gestorArchivos;
+
+    private static String rutaDatos(String username) {
+        return BASE_DIR + username.toUpperCase() + "/" + DATOS_SUBDIR + "/";
+    }
 
     public GestorUsuarios() {
         this.gestorArchivos = new GestorArchivos();
@@ -31,14 +36,13 @@ public class GestorUsuarios implements IGestionable {
             return false;
         }
 
-        String carpeta = BASE_DIR + username.toUpperCase() + "/";
-        String rutaPerfil = carpeta + "perfil.bin";
+        String datosDir = rutaDatos(username);
 
-        if (gestorArchivos.existeArchivo(rutaPerfil)) {
+        if (gestorArchivos.existeArchivo(datosDir + "perfil.bin")) {
             return false;
         }
 
-        new File(carpeta).mkdirs();
+        new File(datosDir).mkdirs();
 
         Usuario nuevoUsuario = new Usuario(
                 username.toUpperCase(),
@@ -47,11 +51,11 @@ public class GestorUsuarios implements IGestionable {
                 LocalDate.now()
         );
         try {
-            guardarPerfil(nuevoUsuario, carpeta);
+            guardarPerfil(nuevoUsuario);
             gestorArchivos.guardar(new Estadisticas(username.toUpperCase()),
-                    carpeta + "estadisticas.bin");
+                    datosDir + "estadisticas.bin");
             gestorArchivos.guardar(new Preferencias(),
-                    carpeta + "preferencias.bin");
+                    datosDir + "preferencias.bin");
             usuarioActual = nuevoUsuario;
             return true;
         } catch (Exception e) {
@@ -65,7 +69,7 @@ public class GestorUsuarios implements IGestionable {
         if (username == null || username.isBlank()) {
             return null;
         }
-        String ruta = BASE_DIR + username.toUpperCase() + "/perfil.bin";
+        String ruta = rutaDatos(username) + "perfil.bin";
         if (!gestorArchivos.existeArchivo(ruta)) {
             return null;
         }
@@ -84,21 +88,20 @@ public class GestorUsuarios implements IGestionable {
             return false;
         }
 
-        String carpeta = BASE_DIR + username.toUpperCase() + "/";
-        String rutaPerfil = carpeta + "perfil.bin";
-        if (!gestorArchivos.existeArchivo(rutaPerfil)) {
+        String datosDir = rutaDatos(username);
+        if (!gestorArchivos.existeArchivo(datosDir + "perfil.bin")) {
             return false;
         }
 
         try {
-            Usuario usuario = (Usuario) gestorArchivos.cargar(rutaPerfil);
+            Usuario usuario = (Usuario) gestorArchivos.cargar(datosDir + "perfil.bin");
             if (usuario != null && usuario.getPassword().equals(password)) {
-                if (!usuario.isActivo()) {
-                    return false;
-                }
                 usuarioActual = usuario;
+                if (!usuarioActual.isActivo()) {
+                    usuarioActual.setActivo(true);
+                }
                 usuarioActual.setUltimaConexion(LocalDate.now());
-                guardarPerfil(usuarioActual, carpeta);
+                guardarPerfil(usuarioActual);
                 return true;
             }
         } catch (Exception e) {
@@ -116,10 +119,7 @@ public class GestorUsuarios implements IGestionable {
         String carpeta = BASE_DIR + username.toUpperCase() + "/";
         File dir = new File(carpeta);
         if (dir.exists()) {
-            for (File f : dir.listFiles()) {
-                f.delete();
-            }
-            dir.delete();
+            eliminarRecursivo(dir);
         }
         if (usuarioActual != null
                 && usuarioActual.getUsername().equals(username.toUpperCase())) {
@@ -128,16 +128,36 @@ public class GestorUsuarios implements IGestionable {
         return true;
     }
 
+    private void eliminarRecursivo(File f) {
+        if (f.isDirectory()) {
+            for (File child : f.listFiles()) {
+                eliminarRecursivo(child);
+            }
+        }
+        f.delete();
+    }
+
     public boolean desactivarCuenta() {
         if (usuarioActual == null) return false;
         usuarioActual.setActivo(false);
-        String carpeta = BASE_DIR + usuarioActual.getUsername() + "/";
         try {
-            guardarPerfil(usuarioActual, carpeta);
+            guardarPerfil(usuarioActual);
             usuarioActual = null;
             return true;
         } catch (Exception e) {
             System.err.println("Error al desactivar cuenta: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean reactivarCuenta() {
+        if (usuarioActual == null) return false;
+        usuarioActual.setActivo(true);
+        try {
+            guardarPerfil(usuarioActual);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error al reactivar cuenta: " + e.getMessage());
             return false;
         }
     }
@@ -150,13 +170,25 @@ public class GestorUsuarios implements IGestionable {
 
         Usuario destino = buscarUsuario(up);
         if (destino == null) return false;
+        if (!destino.isActivo()) return false;
 
         if (destino.agregarSolicitud(usuarioActual.getUsername())) {
-            String carpeta = BASE_DIR + up + "/";
-            try { guardarPerfil(destino, carpeta); } catch (Exception e) { return false; }
+            try { guardarPerfilOtro(destino, up); } catch (Exception e) { return false; }
             return true;
         }
         return false;
+    }
+
+    private boolean guardarPerfilOtro(Usuario usuario, String username) {
+        try {
+            String path = rutaDatos(username) + "perfil.bin";
+            new File(rutaDatos(username)).mkdirs();
+            gestorArchivos.guardar(usuario, path);
+            return true;
+        } catch (Exception e) {
+            System.err.println("Error guardando perfil de " + username + ": " + e.getMessage());
+            return false;
+        }
     }
 
     public boolean aceptarSolicitud(String usernameRemitente) {
@@ -170,8 +202,7 @@ public class GestorUsuarios implements IGestionable {
         Usuario remitente = buscarUsuario(up);
         if (remitente != null) {
             remitente.agregarAmigo(usuarioActual.getUsername());
-            String carpetaR = BASE_DIR + up + "/";
-            try { guardarPerfil(remitente, carpetaR); } catch (Exception e) {}
+            guardarPerfilOtro(remitente, up);
         }
 
         actualizarUsuario(usuarioActual);
@@ -198,6 +229,7 @@ public class GestorUsuarios implements IGestionable {
 
         Usuario destino = buscarUsuario(up);
         if (destino == null) return false;
+        if (!destino.isActivo()) return false;
 
         List<Reto> retos = cargarRetos(up);
         retos.add(new Reto(usuarioActual.getUsername(), up, nivel,
@@ -220,6 +252,21 @@ public class GestorUsuarios implements IGestionable {
                 List<Reto> retosRem = cargarRetos(usernameRemitente.toUpperCase());
                 retosRem.add(r);
                 guardarRetos(usernameRemitente.toUpperCase(), retosRem);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean rechazarReto(String usernameRemitente, int nivel) {
+        if (usuarioActual == null) return false;
+        List<Reto> retos = cargarRetos(usuarioActual.getUsername());
+        for (Reto r : retos) {
+            if (r.getRemitente().equals(usernameRemitente.toUpperCase())
+                    && r.getNivel() == nivel
+                    && r.getEstado() == Reto.EstadoReto.PENDIENTE) {
+                r.rechazarReto();
+                guardarRetos(usuarioActual.getUsername(), retos);
                 return true;
             }
         }
@@ -252,7 +299,7 @@ public class GestorUsuarios implements IGestionable {
     }
 
     private List<Reto> cargarRetos(String username) {
-        String ruta = BASE_DIR + username.toUpperCase() + "/retos.bin";
+        String ruta = rutaDatos(username) + "retos.bin";
         if (!gestorArchivos.existeArchivo(ruta)) return new ArrayList<>();
         try {
             Object obj = gestorArchivos.cargar(ruta);
@@ -264,7 +311,7 @@ public class GestorUsuarios implements IGestionable {
     }
 
     private void guardarRetos(String username, List<Reto> retos) {
-        String ruta = BASE_DIR + username.toUpperCase() + "/retos.bin";
+        String ruta = rutaDatos(username) + "retos.bin";
         try {
             gestorArchivos.guardar(retos, ruta);
         } catch (Exception e) {
@@ -277,9 +324,8 @@ public class GestorUsuarios implements IGestionable {
         if (usuario == null) {
             return false;
         }
-        String carpeta = BASE_DIR + usuario.getUsername() + "/";
         try {
-            guardarPerfil(usuario, carpeta);
+            guardarPerfil(usuario);
             return true;
         } catch (Exception e) {
             System.err.println("Error al actualizar usuario: " + e.getMessage());
@@ -301,7 +347,7 @@ public class GestorUsuarios implements IGestionable {
         }
 
         for (File carpeta : carpetas) {
-            File perfil = new File(carpeta, "perfil.bin");
+            File perfil = new File(carpeta, DATOS_SUBDIR + "/perfil.bin");
             if (perfil.exists()) {
                 try {
                     Usuario u = (Usuario) gestorArchivos.cargar(perfil.getPath());
@@ -397,8 +443,10 @@ public class GestorUsuarios implements IGestionable {
         return false;
     }
 
-    private void guardarPerfil(Usuario usuario, String carpeta) throws Exception {
-        gestorArchivos.guardar(usuario, carpeta + "perfil.bin");
+    private void guardarPerfil(Usuario usuario) throws Exception {
+        String path = rutaDatos(usuario.getUsername()) + "perfil.bin";
+        new File(rutaDatos(usuario.getUsername())).mkdirs();
+        gestorArchivos.guardar(usuario, path);
     }
 
     public Usuario getUsuarioActual() {
@@ -449,11 +497,22 @@ public class GestorUsuarios implements IGestionable {
         if (usuarioActual == null) {
             return lista;
         }
+        List<String> amigosAEliminar = new ArrayList<>();
         for (String u : usuarioActual.getAmigos()) {
             Usuario amigo = buscarUsuario(u);
-            if (amigo != null) {
+            if (amigo != null && amigo.isActivo()) {
+                if (!amigo.getAmigos().contains(usuarioActual.getUsername())) {
+                    amigosAEliminar.add(u);
+                    continue;
+                }
                 lista.add(amigo);
             }
+        }
+        for (String u : amigosAEliminar) {
+            usuarioActual.eliminarAmigo(u);
+        }
+        if (!amigosAEliminar.isEmpty()) {
+            actualizarUsuario(usuarioActual);
         }
         lista.sort(Comparator.comparingInt(
                 (Usuario u) -> u.getEstadisticas().getPuntajeTotal()).reversed());
@@ -461,7 +520,7 @@ public class GestorUsuarios implements IGestionable {
     }
 
     public Preferencias cargarPreferencias(String username) {
-        String ruta = BASE_DIR + username.toUpperCase() + "/preferencias.bin";
+        String ruta = rutaDatos(username) + "preferencias.bin";
         if (!gestorArchivos.existeArchivo(ruta)) {
             Preferencias p = new Preferencias();
             guardarPreferencias(username, p);
@@ -476,11 +535,32 @@ public class GestorUsuarios implements IGestionable {
     }
 
     public void guardarPreferencias(String username, Preferencias pref) {
-        String ruta = BASE_DIR + username.toUpperCase() + "/preferencias.bin";
+        String ruta = rutaDatos(username) + "preferencias.bin";
         try {
             gestorArchivos.guardar(pref, ruta);
         } catch (Exception e) {
             System.err.println("Error guardando preferencias: " + e.getMessage());
         }
+    }
+
+    private static final String GLOBAL_CONFIG = "assets/datos/config.bin";
+
+    public void guardarIdiomaGlobal(com.flowfree.enums.Idioma idioma) {
+        try {
+            gestorArchivos.guardar(idioma, GLOBAL_CONFIG);
+        } catch (Exception e) {
+            System.err.println("Error guardando idioma global: " + e.getMessage());
+        }
+    }
+
+    public com.flowfree.enums.Idioma cargarIdiomaGlobal() {
+        try {
+            if (!gestorArchivos.existeArchivo(GLOBAL_CONFIG)) return com.flowfree.enums.Idioma.ES;
+            Object obj = gestorArchivos.cargar(GLOBAL_CONFIG);
+            if (obj instanceof com.flowfree.enums.Idioma) return (com.flowfree.enums.Idioma) obj;
+        } catch (Exception e) {
+            System.err.println("Error cargando idioma global: " + e.getMessage());
+        }
+        return com.flowfree.enums.Idioma.ES;
     }
 }

@@ -147,6 +147,8 @@ public class PantallaMenu extends PantallaBase {
                 juego.setScreen(new PantallaRanking(juego));
                 break;
             case 3:
+                juego.detenerMusica();
+                juego.gestorUsuarios.guardarIdiomaGlobal(juego.idiomaActual);
                 juego.gestorUsuarios.cerrarSesion();
                 juego.setScreen(new PantallaLogin(juego));
                 break;

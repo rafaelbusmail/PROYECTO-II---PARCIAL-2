@@ -118,7 +118,7 @@ public class PantallaRanking extends PantallaBase {
         tc(fuenteGrande, Traductor.rankingGlobal(juego.idiomaActual), cx, H - 42f);
 
         float colPos = panelX + 55f, colUser = panelX + 120f;
-        float colNivel = panelX + panelW - 230f, colPts = panelX + panelW - 110f;
+        float colNivel = panelX + panelW - 270f, colPts = panelX + panelW - 140f;
         float cabY = filaY0 + filaH + headerH - 28f;
         fuenteSmall.setColor(COLOR_TEXTO_GRIS);
         fuenteSmall.draw(juego.batch, "#", colPos, cabY);

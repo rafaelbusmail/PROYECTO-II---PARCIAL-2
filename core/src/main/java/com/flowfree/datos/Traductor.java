@@ -2,6 +2,7 @@ package com.flowfree.datos;
 
 import com.flowfree.enums.Idioma;
 
+
 public class Traductor {
 
     public static String t(Idioma idioma, String es, String en) {
@@ -54,6 +55,7 @@ public class Traductor {
     public static String noAmigos(Idioma i) { return t(i, "No tienes amigos agregados", "No friends added"); }
     public static String usarAgregar(Idioma i) { return t(i, "Usa el boton AGREGAR para anadir amigos por username", "Use ADD button to add friends by username"); }
     public static String clickComparar(Idioma i) { return t(i, "Click [C] para comparar", "Click [C] to compare"); }
+    public static String retar(Idioma i) { return t(i, "RETAR", "CHALLENGE"); }
     public static String retarA(Idioma i) { return t(i, "RETAR A", "CHALLENGE"); }
     public static String seleccionaNivelReto(Idioma i) { return t(i, "Selecciona el nivel para el reto (1-5):", "Select level for challenge (1-5):"); }
     public static String nivelActual(Idioma i) { return t(i, "Nivel actual", "Current level"); }
@@ -76,6 +78,12 @@ public class Traductor {
     public static String vidas(Idioma i) { return t(i, "Vidas", "Lives"); }
     public static String movimientos(Idioma i) { return t(i, "Mov", "Mov"); }
     public static String retoEnviadoA(Idioma i) { return t(i, "RETO ENVIADO a", "CHALLENGE SENT to"); }
+    public static String retos(Idioma i) { return t(i, "RETOS", "CHALLENGES"); }
+    public static String retosPendientes(Idioma i) { return t(i, "RETOS PENDIENTES", "PENDING CHALLENGES"); }
+    public static String noRetos(Idioma i) { return t(i, "No tienes retos pendientes", "No pending challenges"); }
+    public static String retoCompletado(Idioma i) { return t(i, "RETO COMPLETADO", "CHALLENGE COMPLETED"); }
+    public static String ganador(Idioma i) { return t(i, "GANADOR", "WINNER"); }
+    public static String empate(Idioma i) { return t(i, "EMPATE", "TIE"); }
 
     public static String rankingGlobal(Idioma i) { return t(i, "RANKING GLOBAL", "GLOBAL RANKING"); }
     public static String jugador(Idioma i) { return t(i, "JUGADOR", "PLAYER"); }
@@ -92,4 +100,7 @@ public class Traductor {
     public static String credencialesIncorrectas(Idioma i) { return t(i, "Usuario o contrasena incorrectos", "Invalid username or password"); }
     public static String mostrar(Idioma i) { return t(i, "Mostrar", "Show"); }
     public static String ocultar(Idioma i) { return t(i, "Ocultar", "Hide"); }
+    public static String elegirDisco(Idioma i) { return t(i, "[F] Elegir desde disco", "[F] Choose from disk"); }
+    public static String reactivarCuenta(Idioma i) { return t(i, "REACTIVAR CUENTA", "REACTIVATE ACCOUNT"); }
+    public static String cuentaInactiva(Idioma i) { return t(i, "Cuenta desactivada", "Deactivated account"); }
 }

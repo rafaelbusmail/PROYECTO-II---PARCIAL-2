@@ -189,46 +189,9 @@ public class FlowFreeJuego extends Juego {
             limpiarColor(colorActivo);
         } else if (c.getColor() != null) {
             colorActivo = c.getColor();
-
-            int tam = nivelConfig.getTamano();
-            List<int[]> endpoints = new ArrayList<>();
-            for (int f = 0; f < tam; f++) {
-                for (int r = 0; r < tam; r++) {
-                    if (grid[f][r].getColor() == colorActivo && contarVecinosMismoColor(f, r) <= 1) {
-                        endpoints.add(new int[]{f, r});
-                    }
-                }
-            }
-
-            int[] start = endpoints.isEmpty() ? new int[]{fila, col} : endpoints.get(0);
-            for (int[] ep : endpoints) {
-                int d = Math.abs(ep[0] - fila) + Math.abs(ep[1] - col);
-                int db = Math.abs(start[0] - fila) + Math.abs(start[1] - col);
-                if (d < db) start = ep;
-            }
-
             rutaActiva.clear();
-            boolean[][] vis = new boolean[tam][tam];
-            int[] cur = start;
-            vis[cur[0]][cur[1]] = true;
-            rutaActiva.add(new int[]{cur[0], cur[1]});
-
-            while (true) {
-                int[] next = null;
-                for (int[] d : new int[][]{{-1,0},{1,0},{0,-1},{0,1}}) {
-                    int nf = cur[0] + d[0], nc = cur[1] + d[1];
-                    if (nf < 0 || nf >= tam || nc < 0 || nc >= tam) continue;
-                    if (vis[nf][nc]) continue;
-                    if (grid[nf][nc].getColor() == colorActivo) {
-                        next = new int[]{nf, nc};
-                        break;
-                    }
-                }
-                if (next == null) break;
-                rutaActiva.add(next);
-                vis[next[0]][next[1]] = true;
-                cur = next;
-            }
+            rutaActiva.add(new int[]{fila, col});
+            limpiarColor(colorActivo);
         }
     }
 
@@ -261,6 +224,17 @@ public class FlowFreeJuego extends Juego {
                 }
                 return true;
             }
+        }
+
+        // Cannot move beyond a fixed point that was entered mid-route (start is the only exit point)
+        int[] lastInRoute = rutaActiva.get(rutaActiva.size() - 1);
+        if (grid[lastInRoute[0]][lastInRoute[1]].esPuntoFijo() && rutaActiva.size() > 1) {
+            return false;
+        }
+
+        // Prevent phasing through any already-colored non-fixed cell
+        if (!destino.esPuntoFijo() && destino.getColor() != null) {
+            return false;
         }
 
         if (!destino.esPuntoFijo()) {
@@ -346,6 +320,17 @@ public class FlowFreeJuego extends Juego {
 
     public ColorFlujo getColorActivo() {
         return colorActivo;
+    }
+
+    public boolean esCeldaEnRutaActiva(int fila, int col) {
+        for (int[] p : rutaActiva) {
+            if (p[0] == fila && p[1] == col) return true;
+        }
+        return false;
+    }
+
+    public boolean rutaActivaVacia() {
+        return rutaActiva.isEmpty();
     }
 
     public int getTotalCeldas() {
