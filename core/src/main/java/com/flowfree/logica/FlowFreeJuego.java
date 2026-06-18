@@ -226,13 +226,11 @@ public class FlowFreeJuego extends Juego {
             }
         }
 
-        // Cannot move beyond a fixed point that was entered mid-route (start is the only exit point)
         int[] lastInRoute = rutaActiva.get(rutaActiva.size() - 1);
         if (grid[lastInRoute[0]][lastInRoute[1]].esPuntoFijo() && rutaActiva.size() > 1) {
             return false;
         }
 
-        // Prevent phasing through any already-colored non-fixed cell
         if (!destino.esPuntoFijo() && destino.getColor() != null) {
             return false;
         }
